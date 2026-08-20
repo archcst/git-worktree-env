@@ -18,6 +18,7 @@ sticky port block and its declared local configuration.
 - Generates complete per-worktree configuration files from port templates.
 - Starts optional dependency setup tasks after checkout without blocking Git.
 - Preserves repository hooks behind a global hook dispatcher.
+- Reconciles sandbox-created worktrees through host filesystem monitoring.
 
 ## Requirements
 
@@ -50,6 +51,7 @@ uv tool install --editable .
 wte setup
 cp ~/.config/wte/project.example.yaml.template ~/.config/wte/my-project.yaml
 $EDITOR ~/.config/wte/my-project.yaml
+wte setup  # Refresh monitoring after adding or changing profiles
 cd /path/to/a/linked-worktree
 wte sync
 wte doctor
@@ -88,11 +90,11 @@ See [`examples/fullstack.yaml`](examples/fullstack.yaml) for a complete profile.
 ## Commands
 
 ```text
-wte setup       Create config and the project template, then install Git hooks
+wte setup       Create config/template and install hooks plus host monitoring
 wte sync        Synchronize the current worktree with its project profile
 wte list        List live worktree port allocations
 wte doctor      Diagnose config, profiles, registry, secrets, and hooks
-wte uninstall   Remove Git hooks while preserving config and state
+wte uninstall   Remove hooks/monitoring while preserving config and state
 ```
 
 Run `wte sync` from inside the worktree that needs repair or refresh. It reuses
@@ -104,6 +106,28 @@ exist solely to forward an earlier global hook or a repository-local hook.
 `wte setup` refuses to replace an existing global `core.hooksPath` unless
 `--force` is supplied; forced setup records and chains it. The internal hook
 entry point is intentionally omitted from the public CLI and documentation.
+
+## Sandboxed agent worktrees
+
+Some coding agents create worktrees without running the user's global Git hooks.
+`wte setup` installs an OS-managed directory monitor as a fallback:
+
+- macOS uses a LaunchAgent with `WatchPaths`.
+- Linux uses a systemd user path unit.
+
+The operating system watches each configured repository's `.git/worktrees`
+metadata directory. A change launches a short-lived hidden reconciler; there is
+no resident Python daemon and no timer polling. The reconciler compares
+`git worktree list --porcelain` with `ports.json` and projects configuration only
+into unregistered worktrees. It does not run dependency initializers.
+
+Run `wte setup` again after adding or changing profiles so the watched paths are
+refreshed. `wte sync` refreshes them too when run outside a restrictive sandbox.
+`wte doctor` reports monitor status.
+
+Port allocation, secret links, generated files, and the registry update are one
+short locked transaction. A failed projection does not leave a registry entry,
+so a later filesystem event can retry it without a profile fingerprint.
 
 ## Configuration and state
 
@@ -119,7 +143,8 @@ By default all machine-local files are kept together:
 └── state/
     ├── ports.json
     ├── ports.lock
-    └── hooks-state.json
+    ├── hooks-state.json
+    └── reconciler.log
 ```
 
 Set `WTE_CONFIG_HOME` to override this location. `XDG_CONFIG_HOME` is respected

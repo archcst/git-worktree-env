@@ -138,6 +138,11 @@ def apply_worktree(
     with registry_lock(paths):
         registry = prune_registry(load_registry(paths))
         block_start, ports = allocate_ports(profile, root, registry, pool)
+
+        # Keep allocation and projection in one short transaction. If writing
+        # fails, no registry entry is committed and the reconciler can retry.
+        apply_secrets(profile, root)
+        apply_writes(profile, root, ports)
         registry[str(root)] = {
             "profile": profile["name"],
             "file": Path(profile.get("_file") or "").name,
@@ -146,8 +151,6 @@ def apply_worktree(
         }
         save_registry(paths, registry)
 
-    apply_secrets(profile, root)
-    apply_writes(profile, root, ports)
     if setup:
         run_initializers(profile, root)
     return ApplyResult(str(profile["name"]), root, ports)

@@ -13,14 +13,21 @@ from .hooks import hooks_status, install_hooks, uninstall_hooks
 from .paths import AppPaths
 from .profiles import load_profiles, validate_profiles, worktree_root
 from .projector import apply_worktree, print_apply_result
+from .reconciler import (
+    install_monitor,
+    monitor_status,
+    reconcile_with_retry,
+    uninstall_monitor,
+)
 from .registry import load_registry, prune_registry
 from .utils import WteError, expand_profile_path, log, run_git
 
 INTERNAL_HOOK_COMMAND = "_hook"
+INTERNAL_RECONCILE_COMMAND = "_reconcile"
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    """Build the public CLI without exposing the internal hook command."""
+    """Build the public CLI without exposing internal integration commands."""
     parser = argparse.ArgumentParser(
         prog="wte",
         description="Per-worktree ports, secrets, and local environment setup.",
@@ -30,7 +37,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     setup_parser = commands.add_parser(
         "setup",
-        help="create local configuration and install the Git hook dispatcher",
+        help="create local configuration and install host integration",
     )
     setup_parser.add_argument(
         "--force",
@@ -39,7 +46,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     commands.add_parser("sync", help="synchronize the current worktree")
     commands.add_parser("list", help="list live worktree port allocations")
-    commands.add_parser("doctor", help="diagnose configuration and hook installation")
+    commands.add_parser("doctor", help="diagnose configuration and host integration")
     commands.add_parser(
         "uninstall",
         help="remove Git hooks while preserving configuration and state",
@@ -51,9 +58,14 @@ def _cmd_setup(paths: AppPaths, force: bool) -> int:
     config_created = initialize_config(paths)
     template, template_created = initialize_profile_template(paths)
     dispatcher = install_hooks(paths, force=force)
+    monitor = install_monitor(paths)
     print(f"[wte] config: {paths.config} ({'created' if config_created else 'kept'})")
     print(f"[wte] project template: {template} ({'created' if template_created else 'kept'})")
     print(f"[wte] hooks: {dispatcher.parent}")
+    if monitor.installed:
+        print(f"[wte] reconciler: {monitor.detail} watching {len(monitor.watch_paths)} path(s)")
+    else:
+        print(f"[wte] reconciler: not installed ({monitor.detail})")
     return 0
 
 
@@ -62,6 +74,11 @@ def _cmd_sync(paths: AppPaths, setup: bool = False) -> int:
     if result is None:
         raise WteError("the current worktree does not match any project profile")
     print_apply_result(result)
+    if hooks_status(paths)["installed"]:
+        try:
+            install_monitor(paths)
+        except WteError as exc:
+            log(f"could not refresh reconciler monitor: {exc}")
     return 0
 
 
@@ -108,6 +125,12 @@ def _cmd_doctor(paths: AppPaths) -> int:
     else:
         print(f"[wte] warning: hooks are not installed (current: {status['current_hooks_path']})")
 
+    monitor = monitor_status(paths)
+    if monitor.installed and monitor.active:
+        print(f"[wte] reconciler: active via {monitor.detail} ({len(monitor.watch_paths)} path(s))")
+    else:
+        print(f"[wte] warning: reconciler is not active ({monitor.detail})")
+
     for profile in load_profiles(paths, strict=False):
         for entry in profile.get("secrets") or []:
             if not isinstance(entry, dict) or not entry.get("source"):
@@ -119,8 +142,9 @@ def _cmd_doctor(paths: AppPaths) -> int:
 
 
 def _cmd_uninstall(paths: AppPaths) -> int:
+    uninstall_monitor(paths)
     previous = uninstall_hooks(paths)
-    print("[wte] hooks uninstalled; configuration and state were preserved")
+    print("[wte] hooks and reconciler uninstalled; configuration and state were preserved")
     print(f"[wte] restored core.hooksPath: {previous or '(unset)'}")
     return 0
 
@@ -137,12 +161,28 @@ def _cmd_internal_hook(paths: AppPaths) -> int:
         return 0
 
 
+def _cmd_internal_reconcile(paths: AppPaths) -> int:
+    """Reconcile host-visible worktrees after a common-dir filesystem event."""
+    try:
+        result = reconcile_with_retry(paths)
+        print(
+            f"[wte] reconcile: discovered={result.discovered} "
+            f"applied={result.applied} pending={result.pending}"
+        )
+        return 0 if result.pending == 0 else 1
+    except Exception as exc:
+        log(f"reconcile failed: {exc}")
+        return 1
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     """Parse arguments and return a process exit status."""
     arguments = list(argv) if argv is not None else sys.argv[1:]
     paths = AppPaths.discover()
     if arguments and arguments[0] == INTERNAL_HOOK_COMMAND:
         return _cmd_internal_hook(paths)
+    if arguments and arguments[0] == INTERNAL_RECONCILE_COMMAND:
+        return _cmd_internal_reconcile(paths)
 
     args = _build_parser().parse_args(arguments)
     try:

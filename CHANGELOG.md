@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-20
+
+- Added event-driven host reconciliation for worktrees created without Git hooks.
+- Added macOS LaunchAgent and Linux systemd user path-unit integration.
+- Made registry commits transactional with secret and generated-file projection.
+- Added reconciler status to `wte doctor` and removal to `wte uninstall`.
+
 ## [0.1.1] - 2026-08-20
 
 - Reduced the public CLI to `setup`, `sync`, `list`, `doctor`, and `uninstall`.
