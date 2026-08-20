@@ -48,11 +48,12 @@ pipx install git-worktree-env
 ## 快速开始
 
 ```bash
-wte init
-cp examples/fullstack.yaml ~/.config/wte/my-project.yaml
+wte setup
+cp ~/.config/wte/project.example.yaml.template ~/.config/wte/my-project.yaml
 $EDITOR ~/.config/wte/my-project.yaml
-wte validate
-wte hooks install
+cd /path/to/a/linked-worktree
+wte sync
+wte doctor
 ```
 
 每个项目必须拥有独立的 main worktree：
@@ -88,21 +89,20 @@ init:
 ## 命令
 
 ```text
-wte init                 创建 ~/.config/wte
-wte apply [PATH]         投影配置，但不执行依赖初始化
-wte list                 查看仍存活的 Worktree 端口
-wte gc                   回收失效的 Worktree 记录
-wte release PATH         主动释放指定记录
-wte validate             校验配置和项目 Profiles
-wte doctor               诊断配置、注册表、Secrets 和 Hooks
-wte hooks install        安装全局 Git Hook 分发器
-wte hooks status         查看 Hook 状态
-wte hooks uninstall      卸载并恢复原来的 core.hooksPath
+wte setup       创建配置和项目模板，并安装 Git Hooks
+wte sync        将当前 Worktree 与对应的项目 Profile 同步
+wte list        查看仍存活的 Worktree 端口
+wte doctor      诊断配置、Profiles、注册表、Secrets 和 Hooks
+wte uninstall   卸载 Git Hooks，但保留配置和运行状态
 ```
 
+在需要修复或刷新的 Worktree 内执行 `wte sync`。它会分配或复用端口、重新创建
+Secrets 软链接并生成配置文件，但不会执行依赖初始化命令。
+
 只有 `post-checkout` 会执行 wte。其他 Hook 入口只负责转发安装前的全局 Hook
-或仓库自己的 Hook。若已设置全局 `core.hooksPath`，安装命令默认拒绝覆盖；使用
-`--force` 时会记录并继续转发原有 Hooks。
+或仓库自己的 Hook。若已设置全局 `core.hooksPath`，`wte setup` 默认拒绝覆盖；
+使用 `--force` 时会记录并继续转发原有 Hooks。内部 Hook 入口不会出现在公开 CLI
+或文档中。
 
 ## 配置与运行数据
 
@@ -111,6 +111,7 @@ wte hooks uninstall      卸载并恢复原来的 core.hooksPath
 ```text
 ~/.config/wte/
 ├── config.yaml
+├── project.example.yaml.template
 ├── my-project.yaml
 ├── another-project.yaml
 ├── hooks/
@@ -127,13 +128,14 @@ wte hooks uninstall      卸载并恢复原来的 core.hooksPath
 
 ```yaml
 port_range:
-  start: 35000
-  end: 39999
+  start: 20000
+  end: 29999
 ```
 
-默认范围为 `35000-39999`。Worktree 路径删除后，会在下一次分配时自动回收；
-`wte gc` 还会通过 Git 验证剩余目录。注册表采用原子写入，文件损坏时会明确报错，
-不会静默当成空注册表。
+默认范围为 `20000-29999`，低于常见操作系统临时端口范围和 Kubernetes NodePort
+范围。Worktree 路径删除后，会在下一次手动同步或自动
+Checkout 投影时回收。注册表采用原子写入，文件损坏时会明确报错，不会静默当成
+空注册表。
 
 ## 安全模型
 

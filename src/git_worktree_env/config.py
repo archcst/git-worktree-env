@@ -11,9 +11,52 @@ import yaml
 from .paths import AppPaths
 from .utils import WteError
 
-DEFAULT_POOL_START = 35000
-DEFAULT_POOL_END = 39999
-DEFAULT_CONFIG = """# Inclusive range used for per-worktree port allocation.\nport_range:\n  start: 35000\n  end: 39999\n"""
+DEFAULT_POOL_START = 20000
+DEFAULT_POOL_END = 29999
+DEFAULT_PROFILE_TEMPLATE_NAME = "project.example.yaml.template"
+DEFAULT_CONFIG = """# Inclusive range used for per-worktree port allocation.\nport_range:\n  start: 20000\n  end: 29999\n"""
+DEFAULT_PROFILE_TEMPLATE = """# Copy this file to a root-level *.yaml file, then edit every example value.
+# Example: cp project.example.yaml.template my-project.yaml
+
+# A unique identifier stored in the local port registry.
+name: example-fullstack
+
+match:
+  # Exact path of this project's dedicated main worktree. Linked worktrees
+  # created from it are matched automatically, regardless of their location.
+  main_worktree: $HOME/code/example-app
+
+# Port IDs form one contiguous block in declaration order. Use each ID as a
+# ${placeholder} in writes below.
+ports:
+  - id: frontend
+  - id: backend
+
+# Optional local secret files. Sources stay outside Git; targets are replaced
+# with symlinks inside each matched worktree.
+secrets:
+  - source: $HOME/.config/example-app/backend.env
+    target: apps/backend/.env
+
+# Optional generated files. Each target is overwritten completely on sync.
+writes:
+  - path: apps/frontend/.env.development
+    body: |
+      VITE_PORT=${frontend}
+      VITE_API_URL=http://127.0.0.1:${backend}
+
+  - path: apps/backend/.env.development
+    body: |
+      PORT=${backend}
+      CORS_ORIGIN=http://127.0.0.1:${frontend}
+
+# Optional post-checkout initializers. Commands are trusted local configuration
+# executed by Bash in the background. skip_if is resolved relative to cwd.
+init:
+  - command: npm install
+    cwd: .
+    skip_if: node_modules
+"""
 
 
 @dataclass(frozen=True)
@@ -71,3 +114,13 @@ def initialize_config(paths: AppPaths) -> bool:
         return False
     paths.config.write_text(DEFAULT_CONFIG)
     return True
+
+
+def initialize_profile_template(paths: AppPaths) -> tuple[Path, bool]:
+    """Create the commented project template without making it an active profile."""
+    paths.ensure()
+    template = paths.root / DEFAULT_PROFILE_TEMPLATE_NAME
+    if template.exists():
+        return template, False
+    template.write_text(DEFAULT_PROFILE_TEMPLATE)
+    return template, True

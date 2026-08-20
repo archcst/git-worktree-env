@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 from string import Template
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Dict, Optional
 
 
 class WteError(RuntimeError):
@@ -80,13 +80,3 @@ def safe_worktree_target(root: Path, value: str) -> Path:
     if not is_within(target.parent, root):
         raise WteError(f"target escapes the worktree: {value}")
     return target
-
-
-def command_succeeds(command: Sequence[str], cwd: Optional[Path] = None) -> bool:
-    """Run a quiet probe command and return its success status."""
-    return subprocess.run(
-        list(command),
-        cwd=str(cwd) if cwd else None,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    ).returncode == 0

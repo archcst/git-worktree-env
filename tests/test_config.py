@@ -1,6 +1,10 @@
 import pytest
 
-from git_worktree_env.config import initialize_config, load_port_pool
+from git_worktree_env.config import (
+    initialize_config,
+    initialize_profile_template,
+    load_port_pool,
+)
 from git_worktree_env.paths import AppPaths
 from git_worktree_env.utils import WteError
 
@@ -13,9 +17,22 @@ def test_init_generates_documented_port_range(tmp_path, monkeypatch):
     assert paths.config.read_text() == (
         "# Inclusive range used for per-worktree port allocation.\n"
         "port_range:\n"
-        "  start: 35000\n"
-        "  end: 39999\n"
+        "  start: 20000\n"
+        "  end: 29999\n"
     )
+
+
+def test_setup_template_is_commented_and_not_an_active_yaml_profile(app_paths):
+    template, created = initialize_profile_template(app_paths)
+
+    assert created is True
+    assert template.name == "project.example.yaml.template"
+    text = template.read_text()
+    assert "# A unique identifier" in text
+    assert "# Port IDs form one contiguous block" in text
+    assert "# Optional local secret files" in text
+    assert "# Optional generated files" in text
+    assert "# Optional post-checkout initializers" in text
 
 
 def test_legacy_pool_key_is_rejected(app_paths):

@@ -47,11 +47,12 @@ uv tool install --editable .
 ## Quick start
 
 ```bash
-wte init
-cp examples/fullstack.yaml ~/.config/wte/my-project.yaml
+wte setup
+cp ~/.config/wte/project.example.yaml.template ~/.config/wte/my-project.yaml
 $EDITOR ~/.config/wte/my-project.yaml
-wte validate
-wte hooks install
+cd /path/to/a/linked-worktree
+wte sync
+wte doctor
 ```
 
 Each project must have a dedicated main worktree:
@@ -87,22 +88,22 @@ See [`examples/fullstack.yaml`](examples/fullstack.yaml) for a complete profile.
 ## Commands
 
 ```text
-wte init                 Create ~/.config/wte
-wte apply [PATH]         Apply a profile without running initializers
-wte list                 List live worktree allocations
-wte gc                   Remove stale or invalid allocations
-wte release PATH         Release one allocation explicitly
-wte validate             Validate config and profiles
-wte doctor               Diagnose config, registry, secrets, and hooks
-wte hooks install        Install the global Git hook dispatcher
-wte hooks status         Show dispatcher state
-wte hooks uninstall      Restore the previous core.hooksPath
+wte setup       Create config and the project template, then install Git hooks
+wte sync        Synchronize the current worktree with its project profile
+wte list        List live worktree port allocations
+wte doctor      Diagnose config, profiles, registry, secrets, and hooks
+wte uninstall   Remove Git hooks while preserving config and state
 ```
+
+Run `wte sync` from inside the worktree that needs repair or refresh. It reuses
+or allocates ports, recreates secret symlinks, and regenerates declared files;
+it does not run dependency initializers.
 
 The dispatcher invokes wte only for `post-checkout`. Other installed hook names
 exist solely to forward an earlier global hook or a repository-local hook.
-`wte hooks install` refuses to replace an existing global `core.hooksPath`
-unless `--force` is supplied; forced installation records and chains it.
+`wte setup` refuses to replace an existing global `core.hooksPath` unless
+`--force` is supplied; forced setup records and chains it. The internal hook
+entry point is intentionally omitted from the public CLI and documentation.
 
 ## Configuration and state
 
@@ -111,6 +112,7 @@ By default all machine-local files are kept together:
 ```text
 ~/.config/wte/
 ├── config.yaml
+├── project.example.yaml.template
 ├── my-project.yaml
 ├── another-project.yaml
 ├── hooks/
@@ -129,14 +131,14 @@ The machine-wide allocation range is configured in `config.yaml`:
 
 ```yaml
 port_range:
-  start: 35000
-  end: 39999
+  start: 20000
+  end: 29999
 ```
 
-The default range is `35000-39999`. Deleted worktree paths are reclaimed
-during the next allocation; `wte gc` also verifies remaining paths with Git.
-Registry writes are atomic, and a corrupt registry is reported rather than
-silently replaced.
+The default range is `20000-29999`, below common OS ephemeral ranges and the
+Kubernetes NodePort range. Deleted worktree paths are reclaimed during
+the next synchronization or automatic checkout projection. Registry writes are
+atomic, and a corrupt registry is reported rather than silently replaced.
 
 ## Security model
 

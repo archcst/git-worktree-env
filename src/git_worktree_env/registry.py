@@ -14,7 +14,7 @@ from typing import Any, Dict, Iterator, Set, Tuple
 from .config import PortPool
 from .paths import AppPaths
 from .profiles import Profile
-from .utils import WteError, command_succeeds
+from .utils import WteError
 
 Registry = Dict[str, Any]
 
@@ -76,22 +76,17 @@ def registry_lock(paths: AppPaths) -> Iterator[None]:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
-def is_live_worktree(path: str, verify_git: bool = False) -> bool:
-    """Check path existence, optionally verifying that Git recognizes the worktree."""
-    root = Path(path)
-    if not root.is_dir():
-        return False
-    if not verify_git:
-        return True
-    return command_succeeds(["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"])
+def is_live_worktree(path: str) -> bool:
+    """Return whether a registered worktree directory still exists."""
+    return Path(path).is_dir()
 
 
-def prune_registry(registry: Registry, verify_git: bool = False) -> Registry:
-    """Drop entries whose worktree no longer exists or is no longer valid."""
+def prune_registry(registry: Registry) -> Registry:
+    """Drop entries whose worktree directory no longer exists."""
     return {
         path: metadata
         for path, metadata in registry.items()
-        if isinstance(metadata, dict) and is_live_worktree(path, verify_git=verify_git)
+        if isinstance(metadata, dict) and is_live_worktree(path)
     }
 
 
