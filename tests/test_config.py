@@ -22,7 +22,7 @@ def test_init_generates_documented_port_range(tmp_path, monkeypatch):
     )
 
 
-def test_setup_template_is_commented_and_not_an_active_yaml_profile(app_paths):
+def test_init_template_is_commented_and_not_an_active_yaml_profile(app_paths):
     template, created = initialize_profile_template(app_paths)
 
     assert created is True
@@ -33,6 +33,7 @@ def test_setup_template_is_commented_and_not_an_active_yaml_profile(app_paths):
     assert "# Optional local secret files" in text
     assert "# Optional generated files" in text
     assert "# Optional post-checkout initializers" in text
+    assert "wte monitor enable" in text
 
 
 def test_legacy_pool_key_is_rejected(app_paths):

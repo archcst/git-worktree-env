@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-20
+
+- Renamed `wte setup` to `wte init` for one-time core initialization.
+- Made host monitoring explicit through `wte monitor enable|disable`.
+- Removed the option to replace an existing global `core.hooksPath`.
+- Kept `wte doctor` as the single status surface for hooks and monitoring.
+
 ## [0.1.2] - 2026-08-20
 
 - Added event-driven host reconciliation for worktrees created without Git hooks.

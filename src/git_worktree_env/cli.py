@@ -35,18 +35,20 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"wte {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
 
-    setup_parser = commands.add_parser(
-        "setup",
-        help="create local configuration and install host integration",
-    )
-    setup_parser.add_argument(
-        "--force",
-        action="store_true",
-        help="replace and chain an existing global core.hooksPath",
+    commands.add_parser(
+        "init",
+        help="create local configuration and install the Git hook dispatcher",
     )
     commands.add_parser("sync", help="synchronize the current worktree")
     commands.add_parser("list", help="list live worktree port allocations")
     commands.add_parser("doctor", help="diagnose configuration and host integration")
+    monitor_parser = commands.add_parser(
+        "monitor",
+        help="manage optional host monitoring for sandbox-created worktrees",
+    )
+    monitor_commands = monitor_parser.add_subparsers(dest="monitor_command", required=True)
+    monitor_commands.add_parser("enable", help="install or refresh host monitoring")
+    monitor_commands.add_parser("disable", help="remove host monitoring")
     commands.add_parser(
         "uninstall",
         help="remove Git hooks while preserving configuration and state",
@@ -54,18 +56,13 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _cmd_setup(paths: AppPaths, force: bool) -> int:
+def _cmd_init(paths: AppPaths) -> int:
     config_created = initialize_config(paths)
     template, template_created = initialize_profile_template(paths)
-    dispatcher = install_hooks(paths, force=force)
-    monitor = install_monitor(paths)
+    dispatcher = install_hooks(paths)
     print(f"[wte] config: {paths.config} ({'created' if config_created else 'kept'})")
     print(f"[wte] project template: {template} ({'created' if template_created else 'kept'})")
     print(f"[wte] hooks: {dispatcher.parent}")
-    if monitor.installed:
-        print(f"[wte] reconciler: {monitor.detail} watching {len(monitor.watch_paths)} path(s)")
-    else:
-        print(f"[wte] reconciler: not installed ({monitor.detail})")
     return 0
 
 
@@ -74,11 +71,6 @@ def _cmd_sync(paths: AppPaths, setup: bool = False) -> int:
     if result is None:
         raise WteError("the current worktree does not match any project profile")
     print_apply_result(result)
-    if hooks_status(paths)["installed"]:
-        try:
-            install_monitor(paths)
-        except WteError as exc:
-            log(f"could not refresh reconciler monitor: {exc}")
     return 0
 
 
@@ -141,6 +133,18 @@ def _cmd_doctor(paths: AppPaths) -> int:
     return 1 if failures else 0
 
 
+def _cmd_monitor(paths: AppPaths, command: str) -> int:
+    if command == "enable":
+        monitor = install_monitor(paths)
+        if not monitor.installed:
+            raise WteError(monitor.detail)
+        print(f"[wte] reconciler: {monitor.detail} watching {len(monitor.watch_paths)} path(s)")
+        return 0
+    uninstall_monitor(paths)
+    print("[wte] reconciler monitoring disabled")
+    return 0
+
+
 def _cmd_uninstall(paths: AppPaths) -> int:
     uninstall_monitor(paths)
     previous = uninstall_hooks(paths)
@@ -186,14 +190,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     args = _build_parser().parse_args(arguments)
     try:
-        if args.command == "setup":
-            return _cmd_setup(paths, args.force)
+        if args.command == "init":
+            return _cmd_init(paths)
         if args.command == "sync":
             return _cmd_sync(paths)
         if args.command == "list":
             return _cmd_list(paths)
         if args.command == "doctor":
             return _cmd_doctor(paths)
+        if args.command == "monitor":
+            return _cmd_monitor(paths, args.monitor_command)
         if args.command == "uninstall":
             return _cmd_uninstall(paths)
         raise WteError(f"unknown command: {args.command}")

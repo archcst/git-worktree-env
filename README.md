@@ -48,10 +48,10 @@ uv tool install --editable .
 ## Quick start
 
 ```bash
-wte setup
+wte init
 cp ~/.config/wte/project.example.yaml.template ~/.config/wte/my-project.yaml
 $EDITOR ~/.config/wte/my-project.yaml
-wte setup  # Refresh monitoring after adding or changing profiles
+wte monitor enable  # Optional: support sandbox-created worktrees
 cd /path/to/a/linked-worktree
 wte sync
 wte doctor
@@ -90,11 +90,13 @@ See [`examples/fullstack.yaml`](examples/fullstack.yaml) for a complete profile.
 ## Commands
 
 ```text
-wte setup       Create config/template and install hooks plus host monitoring
-wte sync        Synchronize the current worktree with its project profile
-wte list        List live worktree port allocations
-wte doctor      Diagnose config, profiles, registry, secrets, and hooks
-wte uninstall   Remove hooks/monitoring while preserving config and state
+wte init              Create config/template and install core Git hooks
+wte sync              Synchronize the current worktree with its project profile
+wte list              List live worktree port allocations
+wte doctor            Diagnose config, profiles, registry, secrets, and integration
+wte monitor enable    Install or refresh optional host monitoring
+wte monitor disable   Remove host monitoring while keeping Git hooks
+wte uninstall         Remove all integration while preserving config and state
 ```
 
 Run `wte sync` from inside the worktree that needs repair or refresh. It reuses
@@ -103,14 +105,15 @@ it does not run dependency initializers.
 
 The dispatcher invokes wte only for `post-checkout`. Other installed hook names
 exist solely to forward an earlier global hook or a repository-local hook.
-`wte setup` refuses to replace an existing global `core.hooksPath` unless
-`--force` is supplied; forced setup records and chains it. The internal hook
-entry point is intentionally omitted from the public CLI and documentation.
+`wte init` refuses to replace an existing global `core.hooksPath` and reports
+its current value without changing it. The internal hook entry point is
+intentionally omitted from the public CLI and documentation.
 
 ## Sandboxed agent worktrees
 
 Some coding agents create worktrees without running the user's global Git hooks.
-`wte setup` installs an OS-managed directory monitor as a fallback:
+`wte monitor enable` explicitly installs an OS-managed directory monitor as a
+fallback:
 
 - macOS uses a LaunchAgent with `WatchPaths`.
 - Linux uses a systemd user path unit.
@@ -121,9 +124,9 @@ no resident Python daemon and no timer polling. The reconciler compares
 `git worktree list --porcelain` with `ports.json` and projects configuration only
 into unregistered worktrees. It does not run dependency initializers.
 
-Run `wte setup` again after adding or changing profiles so the watched paths are
-refreshed. `wte sync` refreshes them too when run outside a restrictive sandbox.
-`wte doctor` reports monitor status.
+Run `wte monitor enable` again after adding or changing profiles so the watched
+paths are refreshed. `wte doctor` reports monitor status, and
+`wte monitor disable` removes only this optional integration.
 
 Port allocation, secret links, generated files, and the registry update are one
 short locked transaction. A failed projection does not leave a registry entry,

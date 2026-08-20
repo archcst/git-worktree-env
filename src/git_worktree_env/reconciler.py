@@ -213,7 +213,13 @@ def install_monitor(paths: AppPaths) -> MonitorStatus:
     watched = discover_watch_paths(paths)
     if not watched:
         uninstall_monitor(paths)
-        return MonitorStatus(True, False, False, (), "no configured main worktrees; rerun setup later")
+        return MonitorStatus(
+            True,
+            False,
+            False,
+            (),
+            "no configured main worktrees; add a profile and run `wte monitor enable`",
+        )
     executable = resolve_wte_executable()
     system = platform.system()
     if system == "Darwin":

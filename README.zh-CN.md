@@ -49,10 +49,10 @@ pipx install git-worktree-env
 ## 快速开始
 
 ```bash
-wte setup
+wte init
 cp ~/.config/wte/project.example.yaml.template ~/.config/wte/my-project.yaml
 $EDITOR ~/.config/wte/my-project.yaml
-wte setup  # 新增或修改 Profile 后刷新监控目录
+wte monitor enable  # 可选：支持沙箱工具创建的 Worktree
 cd /path/to/a/linked-worktree
 wte sync
 wte doctor
@@ -91,25 +91,26 @@ init:
 ## 命令
 
 ```text
-wte setup       创建配置和项目模板，并安装 Hooks 与宿主机监控
-wte sync        将当前 Worktree 与对应的项目 Profile 同步
-wte list        查看仍存活的 Worktree 端口
-wte doctor      诊断配置、Profiles、注册表、Secrets 和 Hooks
-wte uninstall   卸载 Hooks 与监控，但保留配置和运行状态
+wte init              创建配置和项目模板，并安装核心 Git Hooks
+wte sync              将当前 Worktree 与对应的项目 Profile 同步
+wte list              查看仍存活的 Worktree 端口
+wte doctor            诊断配置、Profiles、注册表、Secrets 和集成状态
+wte monitor enable    安装或刷新可选的宿主机监控
+wte monitor disable   仅移除宿主机监控，保留 Git Hooks
+wte uninstall         移除所有集成，但保留配置和运行状态
 ```
 
 在需要修复或刷新的 Worktree 内执行 `wte sync`。它会分配或复用端口、重新创建
 Secrets 软链接并生成配置文件，但不会执行依赖初始化命令。
 
 只有 `post-checkout` 会执行 wte。其他 Hook 入口只负责转发安装前的全局 Hook
-或仓库自己的 Hook。若已设置全局 `core.hooksPath`，`wte setup` 默认拒绝覆盖；
-使用 `--force` 时会记录并继续转发原有 Hooks。内部 Hook 入口不会出现在公开 CLI
-或文档中。
+或仓库自己的 Hook。若已设置其他全局 `core.hooksPath`，`wte init` 会显示当前值
+并拒绝修改，不会提供强制覆盖选项。内部 Hook 入口不会出现在公开 CLI 或文档中。
 
 ## 沙箱 Agent 创建的 Worktree
 
-部分编码 Agent 创建 Worktree 时不会执行用户的全局 Git Hooks。`wte setup` 会安装
-操作系统管理的目录监控作为补偿：
+部分编码 Agent 创建 Worktree 时不会执行用户的全局 Git Hooks。
+`wte monitor enable` 会显式安装操作系统管理的目录监控作为补偿：
 
 - macOS 使用带 `WatchPaths` 的 LaunchAgent。
 - Linux 使用 systemd user path unit。
@@ -119,8 +120,8 @@ Secrets 软链接并生成配置文件，但不会执行依赖初始化命令。
 `git worktree list --porcelain` 与 `ports.json`，只投影尚未注册的 Worktree，并且
 不会执行依赖初始化命令。
 
-新增或修改 Profile 后需要再次执行 `wte setup`，以刷新监控路径。在非严格沙箱中
-执行 `wte sync` 也会刷新监控。`wte doctor` 会报告监控状态。
+新增或修改 Profile 后需要再次执行 `wte monitor enable`，以刷新监控路径。
+`wte doctor` 会报告监控状态，`wte monitor disable` 只移除这项可选集成。
 
 端口分配、Secrets 软链接、配置文件生成和注册表更新位于同一个短事务中。如果投影
 失败，注册表不会留下记录，后续文件事件可以直接重试，不需要 Profile 指纹。
