@@ -1,0 +1,33 @@
+# One profile describes one project and its dedicated main worktree.
+name: example-fullstack
+
+match:
+  main_worktree: $HOME/code/example-app
+
+# Claims are allocated as one contiguous block in declaration order.
+ports:
+  - id: frontend
+  - id: backend
+
+# Sources stay outside Git. Targets are symlinks inside every linked worktree.
+secrets:
+  - source: $HOME/.config/example-app/backend.env
+    target: apps/backend/.env
+
+writes:
+  - path: apps/frontend/.env.development
+    body: |
+      VITE_PORT=${frontend}
+      VITE_API_URL=http://127.0.0.1:${backend}
+
+  - path: apps/backend/.env.development
+    body: |
+      PORT=${backend}
+      CORS_ORIGIN=http://127.0.0.1:${frontend}
+
+# Initializers run in the background only from the post-checkout hook.
+# Each command is trusted local configuration and is executed by Bash.
+init:
+  - command: npm install
+    cwd: .
+    skip_if: node_modules

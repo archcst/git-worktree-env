@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+dist/
+build/
+*.egg-info/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+
+# Private runtime data (never publish)
+/*.yaml
+/*.yml
+/*.json
+/state/
+/hooks/
+
+# Local coverage and logs
+.coverage
+htmlcov/
+*.log
