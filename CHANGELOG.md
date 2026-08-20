@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-08-20
+
+- Rewrote the English and Chinese READMEs with clearer positioning, product comparisons, and configuration guidance.
+
 ## [0.1.3] - 2026-08-20
 
 - Renamed `wte setup` to `wte init` for one-time core initialization.
