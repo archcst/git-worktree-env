@@ -2,152 +2,101 @@
 
 [English](README.md)
 
-为每个 Git Worktree 自动分配端口、挂载本地 Secrets，并准备独立的开发环境。
+为每个 Git Worktree 自动准备独立、可运行的本地开发环境。轻量，极简，No magic。
 
-`wte` 通过一份项目配置识别专属的 main worktree。由该 main worktree 创建的
-所有 linked worktree 都会获得稳定且互不冲突的端口，以及项目声明的本地配置。
+## 痛点描述
 
-## 功能
+Git Worktree 被广泛用于并行开发和任务隔离。但一个新 Worktree 通常只有代码，并不是一个可以立即运行的开发环境：
 
-- 从全机共享端口池分配连续端口，并使用文件锁避免并发冲突。
-- Worktree 路径存活期间保持端口稳定。
-- 通过 main worktree 识别 Cursor、IDE 和 Agent 创建的 linked worktree。
-- 将仓库外的 Secrets 以软链接挂载到 Worktree。
-- 根据端口模板生成完整的 Worktree 配置文件。
-- Checkout 后可在后台初始化依赖，不阻塞 Git。
-- 使用全局 Hook 分发器，同时保留仓库已有 Hooks。
-- 通过宿主机目录监控补偿沙箱工具创建的 Worktree。
+- 前端、后端、数据库和调试器仍使用相同的固定端口，多个 Worktree 无法同时启动。
+- `.env`、私钥和其他本机 Secrets 需要重复复制，且容易误提交。
+- 项目内各服务之间的 URL 和端口配置需要手动保持一致。
+
+常见方案通常需要在项目代码中加入额外脚本、修改启动方式，或者修改 `AGENTS.md`、`CLAUDE.md`、创建 skill 等。
+这些做法均具有一定的侵入性，要么在团队内统一推行，要么影响其他团队成员开发。
+
+`wte` 基于 Git `post-checkout` Hook，为项目的 worktrees 分配稳定且不冲突的端口、链接环境变量并生成本地配置。
+Hook 不随仓库提交，本地全局可用，不污染任何代码。
+
+## 对比现有产品
+
+- [Portless](https://github.com/vercel-labs/portless)：需要通过 `portless` 启动应用，引入反向代理、本地 CA 和后台服务。
+- [devports](https://github.com/bendechrai/devports)：使用 `devports` 命令包装 worktree 创建和删除，Agent 或 IDE 直接创建的 worktree 不会自动处理。
+- [Worktrunk](https://worktrunk.dev/)：用 `wt` 代替原生 Git 工作流，不参与环境准备，Agent 或 IDE 直接创建的 worktree 不会自动处理。
+- [workz](https://github.com/rohansx/workz)：使用 .workz.toml、workz sync/start 或针对 Cursor、Claude Code、Worktrunk 分别配置 Hook。
+- [Hyve](https://github.com/eladkishon/hyve)：采用 `hyve create/run` 工作流，依赖 Docker、数据库容器和服务编排。
+
+`wte` 不接管 Worktree 的创建方式和项目启动流程，而是在 Worktree 创建后自动投影完整的本地开发环境。无需修改项目代码、启动命令或 Agent 提示词，无需向项目添加脚本，也无需流量代理和常驻进程；无论 Worktree 由 Git、IDE 还是 Coding Agent 创建，都可以被自动处理。
+
+所有规则均通过仓库外的声明式 Profile 显式配置。`wte` 会为每个 Worktree 分配稳定端口、挂载 Secrets、生成本地配置，并可在后台初始化依赖，使 Worktree 创建既就绪。
+
+## 功能概述
+
+- 从全机共享端口池分配连续端口块，并在 Worktree 路径存活期间保持稳定。
+- 将仓库外的 Secrets 以软链接形式挂载进 Worktree，作为唯一事实来源，避免复制粘贴。
+- 以仓库为维度组织，而非以服务为维度组织。支持 monorepo，支持多端口申请。
+- 可选的宿主机目录监控，自动发现新加入的 linked worktree，可解决 coding agent 沙箱权限问题。
+- 不影响项目本身的 Git Hooks，在 `wte` 的 `post-checkout` Hook 执行完后，将继续调用项目自身的可执行 Git Hook。
+- 零侵入性，无 wrapper，无 skill，无须修改 coding agent 提示词或启动命令。
 
 ## 环境要求
 
 - macOS 或 Linux
 - Python 3.9+
 - Git
-
-由于使用 POSIX 文件锁、软链接和 Bash Hook，目前不支持 Windows。
+- Bash
 
 ## 安装
-
-推荐使用 [uv](https://docs.astral.sh/uv/)：
 
 ```bash
 uv tool install git-worktree-env
 ```
 
-从源码安装开发版本：
+## 升级
 
 ```bash
-uv tool install --editable .
+uv tool upgrade git-worktree-env
 ```
 
-也可以使用：
-
-```bash
-pipx install git-worktree-env
-```
-
-## 快速开始
+## 开始使用
 
 ```bash
 wte init
-cp ~/.config/wte/project.example.yaml.template ~/.config/wte/my-project.yaml
-$EDITOR ~/.config/wte/my-project.yaml
-wte monitor enable  # 可选：支持沙箱工具创建的 Worktree
-cd /path/to/a/linked-worktree
-wte sync
-wte doctor
 ```
 
-每个项目必须拥有独立的 main worktree：
+该命令会：
 
-```yaml
-name: example-fullstack
+- 在 `~/.config/wte/` 中初始化个人配置目录。
+- 执行 `git config --global core.hooksPath ~/.config/wte/hooks` 安装全局 Git Hook 分发器。
 
-match:
-  main_worktree: $HOME/code/example-app
+> 如果全局 `core.hooksPath` 已指向其他位置，`wte` 会显示当前值并拒绝修改，确认其用途并妥善迁移或移除后重试 `wte init`。
 
-ports:
-  - id: frontend
-  - id: backend
+## `~/.config/wte/`
 
-secrets:
-  - source: $HOME/.config/example-app/backend.env
-    target: apps/backend/.env
-
-writes:
-  - path: apps/frontend/.env.development
-    body: |
-      VITE_PORT=${frontend}
-      VITE_API_URL=http://127.0.0.1:${backend}
-
-init:
-  - command: npm install
-    cwd: .
-    skip_if: node_modules
-```
-
-完整配置见 [`examples/fullstack.yaml`](examples/fullstack.yaml)。
-
-## 命令
-
-```text
-wte init              创建配置和项目模板，并安装核心 Git Hooks
-wte sync              将当前 Worktree 与对应的项目 Profile 同步
-wte list              查看仍存活的 Worktree 端口
-wte doctor            诊断配置、Profiles、注册表、Secrets 和集成状态
-wte monitor enable    安装或刷新可选的宿主机监控
-wte monitor disable   仅移除宿主机监控，保留 Git Hooks
-wte uninstall         移除所有集成，但保留配置和运行状态
-```
-
-在需要修复或刷新的 Worktree 内执行 `wte sync`。它会分配或复用端口、重新创建
-Secrets 软链接并生成配置文件，但不会执行依赖初始化命令。
-
-只有 `post-checkout` 会执行 wte。其他 Hook 入口只负责转发安装前的全局 Hook
-或仓库自己的 Hook。若已设置其他全局 `core.hooksPath`，`wte init` 会显示当前值
-并拒绝修改，不会提供强制覆盖选项。内部 Hook 入口不会出现在公开 CLI 或文档中。
-
-## 沙箱 Agent 创建的 Worktree
-
-部分编码 Agent 创建 Worktree 时不会执行用户的全局 Git Hooks。
-`wte monitor enable` 会显式安装操作系统管理的目录监控作为补偿：
-
-- macOS 使用带 `WatchPaths` 的 LaunchAgent。
-- Linux 使用 systemd user path unit。
-
-操作系统监控各项目 `.git/worktrees` 元数据目录。目录变化时只启动一次短生命周期
-的隐藏 Reconciler；不会常驻 Python Daemon，也不进行定时轮询。Reconciler 会比较
-`git worktree list --porcelain` 与 `ports.json`，只投影尚未注册的 Worktree，并且
-不会执行依赖初始化命令。
-
-新增或修改 Profile 后需要再次执行 `wte monitor enable`，以刷新监控路径。
-`wte doctor` 会报告监控状态，`wte monitor disable` 只移除这项可选集成。
-
-端口分配、Secrets 软链接、配置文件生成和注册表更新位于同一个短事务中。如果投影
-失败，注册表不会留下记录，后续文件事件可以直接重试，不需要 Profile 指纹。
-
-## 配置与运行数据
-
-默认统一存放在：
+个人 Profile、Hooks 和运行状态统一存放在：
 
 ```text
 ~/.config/wte/
-├── config.yaml
-├── project.example.yaml.template
-├── my-project.yaml
-├── another-project.yaml
-├── hooks/
-└── state/
-    ├── ports.json
-    ├── ports.lock
-    ├── hooks-state.json
-    └── reconciler.log
+├── config.yaml                       # 全机端口池
+├── project_a.yaml                    # 项目 A Profile
+├── project_b.yaml                    # 项目 B Profile
+├── hooks/                            # 全局 Git Hook 分发器
+└── state/                            # 该目录被 wte 管理，不应手动编辑。
+    ├── ports.json                    # 端口注册表
+    ├── ports.lock                    # 并发锁
+    ├── hooks-state.json              # Hook 安装状态
+    └── reconciler.log                # Monitor 运行日志（仅启动可选的 Monitor 时存在，详见 Monitor 章节）
 ```
 
-可以使用 `WTE_CONFIG_HOME` 修改位置；未设置时也会遵循 `XDG_CONFIG_HOME`。
+根目录中除 `config.yaml` 外的 `*.yaml` 文件均会被作为项目 Profile 加载。
 
-根目录中除 `config.yaml` 外的 YAML 文件都会作为项目 Profile 加载。`state/`
-由 wte 自动维护，不应手动编辑或同步。全机端口分配范围在 `config.yaml` 中配置：
+可以通过 `WTE_CONFIG_HOME` 修改目录；未设置时遵循 `XDG_CONFIG_HOME`。
+
+## 配置文件示例
+
+### 端口段配置
+
+全机端口范围位于 `~/.config/wte/config.yaml`：
 
 ```yaml
 port_range:
@@ -155,23 +104,131 @@ port_range:
   end: 29999
 ```
 
-默认范围为 `20000-29999`，低于常见操作系统临时端口范围和 Kubernetes NodePort
-范围。Worktree 路径删除后，会在下一次手动同步或自动
-Checkout 投影时回收。注册表采用原子写入，文件损坏时会明确报错，不会静默当成
-空注册表。
+默认范围为 `20000-29999`，可手动修改，修改后新 Worktree 将从新的端口段中分配，已分配的端口不变。
 
-## 安全模型
+### 项目 Profile
 
-Profile 是受信任的本机配置。Secrets 内容不会写入端口注册表，源文件始终保留在
-仓库外。Secrets 和生成文件的目标必须位于匹配的 Worktree 内。初始化命令会交给
-Bash 执行，因此不能使用来源不可信的 Profile。
-
-## 开发
+复制配置模板：
 
 ```bash
-uv sync
-uv run pytest
+cp ~/.config/wte/project.example.yaml.template \
+   ~/.config/wte/example-project.yaml
 ```
+
+以下为一个前后端分离项目的 Profile 示例：
+
+```yaml
+name: example-project
+
+match:
+  # 指向该项目的 main worktree 目录。
+  main_worktree: $HOME/code/example-app
+
+ports:
+  # 需要申请的端口的名称，项目需要多少就申请多少，id 在同一个 profile 中应保持唯一
+  - id: frontend_port
+  - id: backend_port
+
+secrets:
+  # 软链接共享的环境变量
+  # source 指向原始环境变量文件，target 是目标位置，路径是基于 worktree 根目录的相对路径。
+  - source: $HOME/path/to/your/frontend.env
+    target: frontend-dir/.env
+  - source: $HOME/path/to/your/backend.env
+    target: backend-dir/.env
+
+writes:
+  # 前端配置：
+  - path: frontend-dir/.env.development
+    body: |
+      VITE_PORT=${frontend_port}
+      SERVER_URL=http://127.0.0.1:${backend_port}
+
+  # 后端配置：
+  - path: backend-dir/.env.development
+    body: |
+      PORT=${backend_port}
+```
+
+> 该示例适用于前后端均可加载 `.env.{env name}` 的情况，请根据具体项目环境变量加载方式自行修改。
+>
+> Worktree 目录删除后，其对应的端口会在下一次触发 `wte` 时被回收。
+
+## Monitor 说明
+
+部分 coding agent 创建 Worktree 时使用沙箱环境，因此 `wte` 的 Hook 可能无法被触发。
+需要支持这类工具时，可启用 Monitor：
+
+```bash
+wte monitor enable
+```
+
+它会监控每个已配置 main worktree 对应的 `.git/worktrees/` 元数据目录：
+
+- macOS 使用带 `WatchPaths` 的 LaunchAgent。
+- Linux 使用 systemd user path unit。
+
+目录变化时，操作系统启动一次短生命周期的 Reconciler。_它不是常驻 Daemon，也不进行定时轮询_，资源消耗极低。
+
+Reconciler 会：
+
+1. 执行 `git worktree list --porcelain` 获取真实 Worktree 列表。
+2. 与 `ports.json` 对比，为尚未注册的 Worktree 分配端口、挂载 Secrets、生成文件。
+
+新增 Profile 或修改 `main_worktree` 路径后，需要再次执行：
+
+```bash
+wte monitor enable
+```
+
+关闭 Monitor 可使用：
+
+```bash
+wte monitor disable
+```
+
+执行后将不再监控文件系统的变化。
+
+## 异步初始化
+
+`wte` 可在 Worktree 创建后自动运行命令，可用于环境初始化：
+
+```yaml
+init:
+  - command: npm install
+    cwd: frontend-dir # 若在 Worktree 根目录执行，则填写“.”
+    skip_if: node_modules # 若该文件或目录存在，则跳过该命令
+
+  - command: uv sync
+    cwd: backend-dir # 若在 Worktree 根目录执行，则填写“.”
+    skip_if: .venv # 若该文件或目录存在，则跳过该命令
+```
+
+典型时间线如下：
+
+```text
+创建 Worktree
+  → wte 完成环境投影并在后台启动 npm install
+  → 用户描述任务，AI 阅读代码、分析和修改
+  → 用户或 AI 启动项目时，依赖通常已经准备完成
+```
+
+异步初始化只由正常的 `post-checkout` Hook 启动。`wte sync` 和 Monitor Reconciler 都不会执行这些命令，避免手动同步或后台补偿重复启动耗时任务。
+
+## `wte` 支持的命令
+
+```text
+wte init              创建个人配置和模板，并安装核心 Git Hooks
+wte sync              同步当前 Worktree 的端口、Secrets 和生成文件
+wte list              查看仍存活的 Worktree 端口分配
+wte doctor            诊断配置、Profiles、注册表、Secrets、Hooks 和 Monitor
+wte monitor enable    安装或刷新可选的宿主机监控
+wte monitor disable   只移除宿主机监控，保留 Git Hooks
+wte uninstall         移除 Hooks 和 Monitor，但保留配置和运行状态
+```
+
+`wte sync` 需要在目标 Worktree 内执行。它会复用已有端口、重新创建 Secrets 软链接并重新生成配置文件。
+当 Worktree 通过非常规方式创建时，你可能需要它。
 
 ## 许可证
 

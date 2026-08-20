@@ -2,160 +2,139 @@
 
 [中文文档](README.zh-CN.md)
 
-Per-worktree ports, local secrets, and development environment setup for Git.
+Automatically prepare an isolated, runnable local development environment for every
+Git worktree. Lightweight, minimal, no magic.
 
-`wte` makes linked worktrees runnable without giving every checkout the same
-hard-coded ports or copying secrets into Git. A project profile identifies one
-dedicated main worktree; every linked worktree created from it receives a
-sticky port block and its declared local configuration.
+## The problem
+
+Git worktrees are widely used for parallel development and task isolation. However,
+a new worktree usually contains only code, not a development environment that is
+ready to run:
+
+- The frontend, backend, database, and debugger still use the same fixed ports,
+  preventing multiple worktrees from running at the same time.
+- `.env` files, private keys, and other local secrets must be copied repeatedly and
+  can easily be committed by mistake.
+- URLs and port settings shared by services within a project must be kept in sync
+  manually.
+
+Common solutions often require adding extra scripts to the project, changing how it
+is started, modifying `AGENTS.md` or `CLAUDE.md`, or creating skills.
+These approaches are intrusive to some degree: they must either be adopted across
+the team or affect how other team members work.
+
+`wte` uses a Git `post-checkout` hook to assign stable, conflict-free ports to a
+project's worktrees, link environment variables, and generate local configuration.
+The hook is not committed to the repository. It is available globally on the local
+machine and does not modify any project code.
+
+## Comparison with existing tools
+
+- [Portless](https://github.com/vercel-labs/portless): Requires applications to be
+  started through `portless`, introducing a reverse proxy, a local CA, and a
+  background service.
+- [devports](https://github.com/bendechrai/devports): Wraps worktree creation and
+  removal in `devports` commands; worktrees created directly by an agent or IDE are
+  not handled automatically.
+- [Worktrunk](https://worktrunk.dev/): Replaces the native Git workflow with `wt`,
+  does not participate in environment setup, and does not automatically handle
+  worktrees created directly by an agent or IDE.
+- [workz](https://github.com/rohansx/workz): Uses `.workz.toml`,
+  `workz sync`/`workz start`, or separately configured hooks for Cursor, Claude Code,
+  and Worktrunk.
+- [Hyve](https://github.com/eladkishon/hyve): Adopts a
+  `hyve create`/`hyve run` workflow and depends on Docker, database containers, and
+  service orchestration.
+
+`wte` does not take over how worktrees are created or how a project is started.
+Instead, it automatically projects a complete local development environment after a
+worktree is created. It requires no changes to project code, start commands, or agent
+prompts; no scripts need to be added to the project, and no traffic proxy or resident
+process is required. Worktrees created by Git, an IDE, or a coding agent can all be
+handled automatically.
+
+All rules are declared explicitly in profiles stored outside the repository. For each
+worktree, `wte` assigns stable ports, mounts secrets, generates local configuration,
+and can initialize dependencies in the background, making the worktree ready
+immediately after creation.
 
 ## Features
 
-- Allocates contiguous, machine-wide port blocks with file locking.
-- Keeps allocations stable for the lifetime of a worktree path.
-- Recognizes linked and agent-created worktrees through their main worktree.
-- Symlinks secrets from files outside the repository.
-- Generates complete per-worktree configuration files from port templates.
-- Starts optional dependency setup tasks after checkout without blocking Git.
-- Preserves repository hooks behind a global hook dispatcher.
-- Reconciles sandbox-created worktrees through host filesystem monitoring.
+- Allocates contiguous port blocks from a machine-wide shared pool and keeps them
+  stable for the lifetime of the worktree path.
+- Mounts secrets stored outside the repository into the worktree as symlinks,
+  preserving a single source of truth and avoiding copy and paste.
+- Organizes configuration by repository rather than by service. Supports monorepos
+  and multiple port requests.
+- Optionally monitors host directories to discover newly added linked worktrees,
+  including those created within coding agent sandboxes.
+- Preserves the project's own Git hooks. After the `post-checkout` hook for `wte`
+  finishes, it invokes the project's own executable Git hook.
+- Zero intrusion: no wrapper, no skill, and no changes to coding agent prompts or
+  project start commands.
 
 ## Requirements
 
 - macOS or Linux
 - Python 3.9+
 - Git
-
-Windows is not currently supported because wte uses POSIX file locks, symlinks,
-and Bash hooks.
+- Bash
 
 ## Installation
-
-With [uv](https://docs.astral.sh/uv/) (recommended):
 
 ```bash
 uv tool install git-worktree-env
 ```
 
-From a source checkout:
+## Upgrading
 
 ```bash
-uv tool install --editable .
+uv tool upgrade git-worktree-env
 ```
 
-`pipx install git-worktree-env` is also supported.
-
-## Quick start
+## Getting started
 
 ```bash
 wte init
-cp ~/.config/wte/project.example.yaml.template ~/.config/wte/my-project.yaml
-$EDITOR ~/.config/wte/my-project.yaml
-wte monitor enable  # Optional: support sandbox-created worktrees
-cd /path/to/a/linked-worktree
-wte sync
-wte doctor
 ```
 
-Each project must have a dedicated main worktree:
+This command:
 
-```yaml
-name: example-fullstack
+- Initializes the personal configuration directory at `~/.config/wte/`.
+- Runs `git config --global core.hooksPath ~/.config/wte/hooks` to install the global
+  Git hook dispatcher.
 
-match:
-  main_worktree: $HOME/code/example-app
+> If the global `core.hooksPath` already points somewhere else, `wte` displays the
+> current value and refuses to change it. Confirm its purpose and migrate or remove
+> it as appropriate before retrying `wte init`.
 
-ports:
-  - id: frontend
-  - id: backend
+## `~/.config/wte/`
 
-secrets:
-  - source: $HOME/.config/example-app/backend.env
-    target: apps/backend/.env
-
-writes:
-  - path: apps/frontend/.env.development
-    body: |
-      VITE_PORT=${frontend}
-      VITE_API_URL=http://127.0.0.1:${backend}
-
-init:
-  - command: npm install
-    cwd: .
-    skip_if: node_modules
-```
-
-See [`examples/fullstack.yaml`](examples/fullstack.yaml) for a complete profile.
-
-## Commands
-
-```text
-wte init              Create config/template and install core Git hooks
-wte sync              Synchronize the current worktree with its project profile
-wte list              List live worktree port allocations
-wte doctor            Diagnose config, profiles, registry, secrets, and integration
-wte monitor enable    Install or refresh optional host monitoring
-wte monitor disable   Remove host monitoring while keeping Git hooks
-wte uninstall         Remove all integration while preserving config and state
-```
-
-Run `wte sync` from inside the worktree that needs repair or refresh. It reuses
-or allocates ports, recreates secret symlinks, and regenerates declared files;
-it does not run dependency initializers.
-
-The dispatcher invokes wte only for `post-checkout`. Other installed hook names
-exist solely to forward an earlier global hook or a repository-local hook.
-`wte init` refuses to replace an existing global `core.hooksPath` and reports
-its current value without changing it. The internal hook entry point is
-intentionally omitted from the public CLI and documentation.
-
-## Sandboxed agent worktrees
-
-Some coding agents create worktrees without running the user's global Git hooks.
-`wte monitor enable` explicitly installs an OS-managed directory monitor as a
-fallback:
-
-- macOS uses a LaunchAgent with `WatchPaths`.
-- Linux uses a systemd user path unit.
-
-The operating system watches each configured repository's `.git/worktrees`
-metadata directory. A change launches a short-lived hidden reconciler; there is
-no resident Python daemon and no timer polling. The reconciler compares
-`git worktree list --porcelain` with `ports.json` and projects configuration only
-into unregistered worktrees. It does not run dependency initializers.
-
-Run `wte monitor enable` again after adding or changing profiles so the watched
-paths are refreshed. `wte doctor` reports monitor status, and
-`wte monitor disable` removes only this optional integration.
-
-Port allocation, secret links, generated files, and the registry update are one
-short locked transaction. A failed projection does not leave a registry entry,
-so a later filesystem event can retry it without a profile fingerprint.
-
-## Configuration and state
-
-By default all machine-local files are kept together:
+Personal profiles, hooks, and runtime state are stored together in:
 
 ```text
 ~/.config/wte/
-├── config.yaml
-├── project.example.yaml.template
-├── my-project.yaml
-├── another-project.yaml
-├── hooks/
-└── state/
-    ├── ports.json
-    ├── ports.lock
-    ├── hooks-state.json
-    └── reconciler.log
+├── config.yaml                       # Machine-wide port pool
+├── project_a.yaml                    # Project A profile
+├── project_b.yaml                    # Project B profile
+├── hooks/                            # Global Git hook dispatcher
+└── state/                            # Managed by wte; do not edit manually.
+    ├── ports.json                    # Port registry
+    ├── ports.lock                    # Concurrency lock
+    ├── hooks-state.json              # Hook installation state
+    └── reconciler.log                # Monitor log (present only when the optional Monitor is enabled; see the Monitor section)
 ```
 
-Set `WTE_CONFIG_HOME` to override this location. `XDG_CONFIG_HOME` is respected
-when no explicit override is present.
+Every root-level `*.yaml` file except `config.yaml` is loaded as a project profile.
 
-Every root-level YAML file except `config.yaml` is loaded as a project profile.
-The `state/` directory is managed by wte and should not be edited or synchronized.
-The machine-wide allocation range is configured in `config.yaml`:
+Set `WTE_CONFIG_HOME` to change this directory. When it is not set,
+`XDG_CONFIG_HOME` is respected.
+
+## Configuration examples
+
+### Port range
+
+The machine-wide port range is configured in `~/.config/wte/config.yaml`:
 
 ```yaml
 port_range:
@@ -163,24 +142,145 @@ port_range:
   end: 29999
 ```
 
-The default range is `20000-29999`, below common OS ephemeral ranges and the
-Kubernetes NodePort range. Deleted worktree paths are reclaimed during
-the next synchronization or automatic checkout projection. Registry writes are
-atomic, and a corrupt registry is reported rather than silently replaced.
+The default range is `20000-29999`. You can change it manually; new worktrees will
+be allocated from the new range, while existing allocations remain unchanged.
 
-## Security model
+### Project profile
 
-Profiles are trusted local configuration. Secret contents are never stored in
-the registry and secret sources remain outside the repository. Write and secret
-targets are restricted to the matched worktree. Initializer commands are passed
-to Bash and therefore must not come from untrusted profiles.
-
-## Development
+Copy the configuration template:
 
 ```bash
-uv sync
-uv run pytest
+cp ~/.config/wte/project.example.yaml.template \
+   ~/.config/wte/example-project.yaml
 ```
+
+The following profile describes a project with separate frontend and backend services:
+
+```yaml
+name: example-project
+
+match:
+  # Points to the project's main worktree directory.
+  main_worktree: $HOME/code/example-app
+
+ports:
+  # Names of the ports to request. Add as many as the project needs;
+  # each id must be unique within the profile.
+  - id: frontend_port
+  - id: backend_port
+
+secrets:
+  # Environment files shared through symlinks.
+  # source points to the original environment file, while target is a path
+  # relative to the worktree root.
+  - source: $HOME/path/to/your/frontend.env
+    target: frontend-dir/.env
+  - source: $HOME/path/to/your/backend.env
+    target: backend-dir/.env
+
+writes:
+  # Frontend configuration:
+  - path: frontend-dir/.env.development
+    body: |
+      VITE_PORT=${frontend_port}
+      SERVER_URL=http://127.0.0.1:${backend_port}
+
+  # Backend configuration:
+  - path: backend-dir/.env.development
+    body: |
+      PORT=${backend_port}
+```
+
+> This example applies when both the frontend and backend can load `.env.{env name}`
+> files. Adjust it to match how your project loads environment variables.
+>
+> After a worktree directory is deleted, its ports are reclaimed the next time `wte`
+> is triggered.
+
+## Monitor
+
+Some coding agents create worktrees inside a sandbox, which can prevent the `wte` hook from running.
+To support these tools, enable the Monitor:
+
+```bash
+wte monitor enable
+```
+
+It watches the `.git/worktrees/` metadata directory associated with each configured
+main worktree:
+
+- macOS uses a LaunchAgent with `WatchPaths`.
+- Linux uses a systemd user path unit.
+
+When the directory changes, the operating system starts a short-lived Reconciler.
+_It is not a resident daemon and does not poll on a timer_, so its resource usage is
+minimal.
+
+The Reconciler:
+
+1. Runs `git worktree list --porcelain` to retrieve the actual list of worktrees.
+2. Compares it with `ports.json`, then assigns ports, mounts secrets, and generates
+   files for unregistered worktrees.
+
+After adding a profile or changing a `main_worktree` path, run this command again:
+
+```bash
+wte monitor enable
+```
+
+To disable the Monitor, run:
+
+```bash
+wte monitor disable
+```
+
+Afterward, filesystem changes will no longer be monitored.
+
+## Asynchronous initialization
+
+`wte` can automatically run commands after a worktree is created, allowing the
+environment to be initialized in the background:
+
+```yaml
+init:
+  - command: npm install
+    cwd: frontend-dir  # Use "." to run from the worktree root.
+    skip_if: node_modules  # Skip this command if the file or directory exists.
+
+  - command: uv sync
+    cwd: backend-dir  # Use "." to run from the worktree root.
+    skip_if: .venv  # Skip this command if the file or directory exists.
+```
+
+A typical timeline looks like this:
+
+```text
+Create a worktree
+  → wte projects the environment and starts npm install in the background
+  → The user describes the task; the AI reads, analyzes, and modifies the code
+  → By the time the user or AI starts the project, dependencies are usually ready
+```
+
+Asynchronous initialization is started only by the normal `post-checkout` hook.
+Neither `wte sync` nor the Monitor Reconciler runs these commands, preventing manual
+synchronization or background reconciliation from repeatedly starting expensive
+tasks.
+
+## Commands supported by `wte`
+
+```text
+wte init              Create personal configuration and templates, and install core Git hooks
+wte sync              Synchronize ports, secrets, and generated files for the current worktree
+wte list              List port allocations for worktrees that still exist
+wte doctor            Diagnose configuration, profiles, registry, secrets, hooks, and Monitor
+wte monitor enable    Install or refresh optional host monitoring
+wte monitor disable   Remove host monitoring only, preserving Git hooks
+wte uninstall         Remove hooks and the Monitor, preserving configuration and runtime state
+```
+
+Run `wte sync` from inside the target worktree. It reuses existing ports, recreates
+secret symlinks, and regenerates configuration files.
+You may need it when a worktree is created through an unconventional method.
 
 ## License
 
