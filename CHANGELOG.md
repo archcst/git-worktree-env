@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-21
+
 - Changed profile initializers to `command` and `args` string arrays, executed
   directly without an implicit shell.
 - Renamed the Python module from `git_worktree_env` to `worktree_env`.
