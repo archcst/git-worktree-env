@@ -1,7 +1,7 @@
 import plistlib
 from pathlib import Path
 
-from git_worktree_env.reconciler import (
+from worktree_env.reconciler import (
     LAUNCHD_LABEL,
     _listed_worktrees,
     _write_launch_agent,
@@ -9,7 +9,7 @@ from git_worktree_env.reconciler import (
     discover_watch_paths,
     reconcile_once,
 )
-from git_worktree_env.registry import load_registry
+from worktree_env.registry import load_registry
 
 
 def test_git_porcelain_discovery_returns_main_and_linked_worktrees(git_worktrees):
@@ -41,7 +41,7 @@ def test_reconciler_projects_only_unregistered_worktrees(
         "ports:\n  - id: web\n"
         "writes:\n  - path: generated.env\n    body: PORT=${web}\n"
     )
-    monkeypatch.setattr("git_worktree_env.registry.port_is_free", lambda _port: True)
+    monkeypatch.setattr("worktree_env.registry.port_is_free", lambda _port: True)
 
     first = reconcile_once(app_paths)
     second = reconcile_once(app_paths)
@@ -61,7 +61,7 @@ def test_launch_agent_watches_common_git_metadata(
     agent = tmp_path / "wte.plist"
     watched = (tmp_path / "repo/.git/worktrees",)
     monkeypatch.setattr(
-        "git_worktree_env.reconciler._launch_agent_path", lambda: agent
+        "worktree_env.reconciler._launch_agent_path", lambda: agent
     )
 
     _write_launch_agent(app_paths, Path("/opt/bin/wte"), watched)
@@ -77,7 +77,7 @@ def test_systemd_path_unit_uses_one_shot_reconciliation(tmp_path, monkeypatch):
     unit_dir = tmp_path / "systemd/user"
     watched = (tmp_path / "repo/.git/worktrees",)
     monkeypatch.setattr(
-        "git_worktree_env.reconciler._systemd_user_dir", lambda: unit_dir
+        "worktree_env.reconciler._systemd_user_dir", lambda: unit_dir
     )
 
     service, path_unit = _write_systemd_units(Path("/opt/bin/wte"), watched)

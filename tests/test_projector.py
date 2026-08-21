@@ -1,8 +1,8 @@
 import pytest
 
-from git_worktree_env.projector import apply_worktree, run_initializers
-from git_worktree_env.registry import load_registry
-from git_worktree_env.utils import WteError
+from worktree_env.projector import apply_worktree, run_initializers
+from worktree_env.registry import load_registry
+from worktree_env.utils import WteError
 
 
 def test_projection_links_secrets_and_writes_ports(app_paths, git_worktrees, tmp_path, monkeypatch):
@@ -25,7 +25,7 @@ def test_projection_links_secrets_and_writes_ports(app_paths, git_worktrees, tmp
     generated_path = linked / "app/.env.development"
     generated_path.parent.mkdir(parents=True)
     generated_path.write_text("KEEP=old\n")
-    monkeypatch.setattr("git_worktree_env.registry.port_is_free", lambda _port: True)
+    monkeypatch.setattr("worktree_env.registry.port_is_free", lambda _port: True)
 
     result = apply_worktree(app_paths, linked)
 
@@ -54,10 +54,10 @@ def test_initializers_execute_command_and_args_without_a_shell(
         ],
     }
     monkeypatch.setattr(
-        "git_worktree_env.projector.tempfile.gettempdir", lambda: str(tmp_path)
+        "worktree_env.projector.tempfile.gettempdir", lambda: str(tmp_path)
     )
     monkeypatch.setattr(
-        "git_worktree_env.projector.subprocess.Popen",
+        "worktree_env.projector.subprocess.Popen",
         lambda argv, **kwargs: calls.append((argv, kwargs)),
     )
 
@@ -78,12 +78,12 @@ def test_failed_projection_does_not_commit_a_registry_entry(
         "ports:\n  - id: web\n"
         "writes:\n  - path: generated.env\n    body: PORT=${web}\n"
     )
-    monkeypatch.setattr("git_worktree_env.registry.port_is_free", lambda _port: True)
+    monkeypatch.setattr("worktree_env.registry.port_is_free", lambda _port: True)
 
     def fail_writes(*_args):
         raise WteError("write failed")
 
-    monkeypatch.setattr("git_worktree_env.projector.apply_writes", fail_writes)
+    monkeypatch.setattr("worktree_env.projector.apply_writes", fail_writes)
 
     with pytest.raises(WteError, match="write failed"):
         apply_worktree(app_paths, linked)

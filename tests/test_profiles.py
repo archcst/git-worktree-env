@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from git_worktree_env.profiles import find_profile, main_worktree_root, validate_profiles
+from worktree_env.profiles import find_profile, main_worktree_root, validate_profiles
 
 
 def test_linked_worktree_matches_its_main_profile(app_paths, git_worktrees):

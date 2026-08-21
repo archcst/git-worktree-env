@@ -1,4 +1,4 @@
-"""Allow ``python -m git_worktree_env`` to behave like ``wte``."""
+"""Allow ``python -m worktree_env`` to behave like ``wte``."""
 
 from .cli import main
 

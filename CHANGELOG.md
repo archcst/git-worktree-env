@@ -6,13 +6,13 @@ All notable changes to this project will be documented in this file.
 
 - Changed profile initializers to `command` and `args` string arrays, executed
   directly without an implicit shell.
+- Renamed the Python module from `git_worktree_env` to `worktree_env`.
 
 ## [0.2.0] - 2026-08-21
 
 - Renamed the PyPI package and GitHub repository from `git-worktree-env` to
   `worktree-env`.
-- Kept the `wte` command, `git_worktree_env` Python module, and existing
-  `~/.config/wte/` configuration compatible.
+- Kept the `wte` command and existing `~/.config/wte/` configuration compatible.
 - Added a final `git-worktree-env` transition package and runtime migration guidance.
 
 ## [0.1.4] - 2026-08-20

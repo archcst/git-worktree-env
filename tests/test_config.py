@@ -1,12 +1,12 @@
 import pytest
 
-from git_worktree_env.config import (
+from worktree_env.config import (
     initialize_config,
     initialize_profile_template,
     load_port_pool,
 )
-from git_worktree_env.paths import AppPaths
-from git_worktree_env.utils import WteError
+from worktree_env.paths import AppPaths
+from worktree_env.utils import WteError
 
 
 def test_init_generates_documented_port_range(tmp_path, monkeypatch):

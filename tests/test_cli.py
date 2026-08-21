@@ -2,7 +2,7 @@ import argparse
 
 import pytest
 
-from git_worktree_env.cli import _build_parser, _warn_if_legacy_distribution_installed
+from worktree_env.cli import _build_parser, _warn_if_legacy_distribution_installed
 
 
 def test_public_cli_contains_only_the_six_user_commands():
@@ -37,7 +37,7 @@ def test_sync_does_not_accept_a_worktree_path():
 
 def test_legacy_distribution_prints_migration_instructions(monkeypatch, capsys):
     monkeypatch.setattr(
-        "git_worktree_env.cli.metadata.distribution", lambda _name: object()
+        "worktree_env.cli.metadata.distribution", lambda _name: object()
     )
 
     _warn_if_legacy_distribution_installed()

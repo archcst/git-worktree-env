@@ -6,7 +6,7 @@ from typing import Sequence
 
 import pytest
 
-from git_worktree_env.paths import AppPaths
+from worktree_env.paths import AppPaths
 
 
 def run(command: Sequence[str], cwd: Path) -> str:

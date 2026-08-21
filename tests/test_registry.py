@@ -3,14 +3,14 @@ from pathlib import Path
 
 import pytest
 
-from git_worktree_env.config import PortPool
-from git_worktree_env.registry import (
+from worktree_env.config import PortPool
+from worktree_env.registry import (
     allocate_ports,
     load_registry,
     prune_registry,
     save_registry,
 )
-from git_worktree_env.utils import WteError
+from worktree_env.utils import WteError
 
 
 def test_allocation_is_sticky_and_contiguous(app_paths, tmp_path, monkeypatch):
@@ -21,7 +21,7 @@ def test_allocation_is_sticky_and_contiguous(app_paths, tmp_path, monkeypatch):
         "_file": str(tmp_path / "example.yaml"),
         "ports": [{"id": "frontend"}, {"id": "backend"}],
     }
-    monkeypatch.setattr("git_worktree_env.registry.port_is_free", lambda _port: True)
+    monkeypatch.setattr("worktree_env.registry.port_is_free", lambda _port: True)
 
     start, ports = allocate_ports(profile, root, {}, PortPool(42000, 42010))
     registry = {

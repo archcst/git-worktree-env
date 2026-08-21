@@ -20,11 +20,5 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Build worktree-env
         run: uv build
-      - name: Build git-worktree-env transition package
-        if: github.ref == 'refs/tags/v0.2.0'
-        run: uv build migration/git-worktree-env --out-dir migration/git-worktree-env/dist
       - name: Publish worktree-env
         run: uv publish dist/* --trusted-publishing always
-      - name: Publish git-worktree-env transition package
-        if: github.ref == 'refs/tags/v0.2.0'
-        run: uv publish migration/git-worktree-env/dist/* --trusted-publishing always

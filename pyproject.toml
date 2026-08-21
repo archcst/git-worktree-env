@@ -37,8 +37,8 @@ Repository = "https://github.com/archcst/worktree-env"
 Issues = "https://github.com/archcst/worktree-env/issues"
 
 [project.scripts]
-wte = "git_worktree_env.cli:main"
-worktree-env = "git_worktree_env.cli:main"
+wte = "worktree_env.cli:main"
+worktree-env = "worktree_env.cli:main"
 
 [dependency-groups]
 dev = [
@@ -46,7 +46,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/git_worktree_env"]
+packages = ["src/worktree_env"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from git_worktree_env.hooks import _dispatcher_script, install_hooks
-from git_worktree_env.utils import WteError
+from worktree_env.hooks import _dispatcher_script, install_hooks
+from worktree_env.utils import WteError
 
 
 def test_dispatcher_runs_wte_only_for_post_checkout():
@@ -22,7 +22,7 @@ def test_install_refuses_to_replace_an_existing_global_hooks_path(
     existing = tmp_path / "other-hooks"
     existing.mkdir()
     monkeypatch.setattr(
-        "git_worktree_env.hooks.current_hooks_path", lambda: str(existing)
+        "worktree_env.hooks.current_hooks_path", lambda: str(existing)
     )
 
     with pytest.raises(WteError, match="wte did not change it"):
