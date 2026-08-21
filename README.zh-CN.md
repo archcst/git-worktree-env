@@ -210,11 +210,13 @@ wte monitor disable
 
 ```yaml
 init:
-  - command: npm install
+  - command: [npm]
+    args: [install]
     cwd: frontend-dir # 若在 Worktree 根目录执行，则填写“.”
     skip_if: node_modules # 若该文件或目录存在，则跳过该命令
 
-  - command: uv sync
+  - command: [uv]
+    args: [sync]
     cwd: backend-dir # 若在 Worktree 根目录执行，则填写“.”
     skip_if: .venv # 若该文件或目录存在，则跳过该命令
 ```

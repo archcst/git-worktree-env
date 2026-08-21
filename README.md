@@ -259,11 +259,13 @@ environment to be initialized in the background:
 
 ```yaml
 init:
-  - command: npm install
+  - command: [npm]
+    args: [install]
     cwd: frontend-dir  # Use "." to run from the worktree root.
     skip_if: node_modules  # Skip this command if the file or directory exists.
 
-  - command: uv sync
+  - command: [uv]
+    args: [sync]
     cwd: backend-dir  # Use "." to run from the worktree root.
     skip_if: .venv  # Skip this command if the file or directory exists.
 ```

@@ -1,6 +1,6 @@
 import pytest
 
-from git_worktree_env.projector import apply_worktree
+from git_worktree_env.projector import apply_worktree, run_initializers
 from git_worktree_env.registry import load_registry
 from git_worktree_env.utils import WteError
 
@@ -37,6 +37,35 @@ def test_projection_links_secrets_and_writes_ports(app_paths, git_worktrees, tmp
     assert "PORT=41000" in generated
     assert "API=http://127.0.0.1:41001" in generated
     assert load_registry(app_paths)[str(linked)]["profile"] == "example"
+
+
+def test_initializers_execute_command_and_args_without_a_shell(
+    tmp_path, monkeypatch, capsys
+):
+    calls = []
+    profile = {
+        "name": "example",
+        "init": [
+            {
+                "command": ["tool", "subcommand"],
+                "args": ["literal;value", "two words"],
+                "cwd": ".",
+            }
+        ],
+    }
+    monkeypatch.setattr(
+        "git_worktree_env.projector.tempfile.gettempdir", lambda: str(tmp_path)
+    )
+    monkeypatch.setattr(
+        "git_worktree_env.projector.subprocess.Popen",
+        lambda argv, **kwargs: calls.append((argv, kwargs)),
+    )
+
+    run_initializers(profile, tmp_path)
+
+    assert calls[0][0] == ["tool", "subcommand", "literal;value", "two words"]
+    assert calls[0][1]["cwd"] == str(tmp_path.resolve())
+    assert "tool subcommand 'literal;value' 'two words'" in capsys.readouterr().err
 
 
 def test_failed_projection_does_not_commit_a_registry_entry(

@@ -33,6 +33,10 @@ def test_init_template_is_commented_and_not_an_active_yaml_profile(app_paths):
     assert "# Optional local secret files" in text
     assert "# Optional generated files" in text
     assert "# Optional post-checkout initializers" in text
+    assert "$HOME/.config/example-app/frontend.env" in text
+    assert "$HOME/.config/example-app/backend.env" in text
+    assert "cwd: apps/frontend" in text
+    assert "cwd: apps/backend" in text
     assert "wte monitor enable" in text
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -90,11 +91,26 @@ def _init_entries(profile: Profile) -> List[Dict[str, Any]]:
 def run_initializers(profile: Profile, root: Path) -> None:
     """Start missing dependency setup tasks without blocking Git checkout."""
     for index, item in enumerate(_init_entries(profile)):
-        command = str(item.get("command") or "").strip()
-        cwd_raw = str(item.get("cwd") or "").strip()
-        if not command or not cwd_raw:
-            log(f"initializer skipped; command and cwd are required: {item}")
+        command = item.get("command")
+        args = item.get("args", [])
+        cwd_raw = item.get("cwd")
+        if (
+            not isinstance(command, list)
+            or not command
+            or not all(isinstance(value, str) for value in command)
+            or not command[0].strip()
+        ):
+            log(f"initializer skipped; command must be a non-empty string list: {item}")
             continue
+        if not isinstance(args, list) or not all(
+            isinstance(value, str) for value in args
+        ):
+            log(f"initializer skipped; args must be a string list: {item}")
+            continue
+        if not isinstance(cwd_raw, str) or not cwd_raw.strip():
+            log(f"initializer skipped; cwd is required: {item}")
+            continue
+        argv = command + args
         cwd = expand_profile_path(cwd_raw, profile, root=root).resolve()
         if not cwd.is_dir():
             log(f"initializer skipped; directory does not exist: {cwd}")
@@ -108,7 +124,7 @@ def run_initializers(profile: Profile, root: Path) -> None:
         output = log_path.open("a")
         try:
             subprocess.Popen(
-                ["bash", "-lc", command],
+                argv,
                 cwd=str(cwd),
                 stdout=output,
                 stderr=subprocess.STDOUT,
@@ -116,7 +132,7 @@ def run_initializers(profile: Profile, root: Path) -> None:
             )
         finally:
             output.close()
-        log(f"initializer started: {command} -> {log_path}")
+        log(f"initializer started: {shlex.join(argv)} -> {log_path}")
 
 
 def apply_worktree(

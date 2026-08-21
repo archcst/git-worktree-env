@@ -11,6 +11,8 @@ ports:
 
 # Sources stay outside Git. Targets are symlinks inside every linked worktree.
 secrets:
+  - source: $HOME/.config/example-app/frontend.env
+    target: apps/frontend/.env
   - source: $HOME/.config/example-app/backend.env
     target: apps/backend/.env
 
@@ -26,8 +28,13 @@ writes:
       CORS_ORIGIN=http://127.0.0.1:${frontend}
 
 # Initializers run in the background only from the post-checkout hook.
-# Each command is trusted local configuration and is executed by Bash.
+# Each command is trusted local configuration and is executed directly.
 init:
-  - command: npm install
-    cwd: .
+  - command: [npm]
+    args: [install]
+    cwd: apps/frontend
     skip_if: node_modules
+  - command: [uv]
+    args: [sync]
+    cwd: apps/backend
+    skip_if: .venv

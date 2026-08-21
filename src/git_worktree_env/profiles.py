@@ -210,6 +210,35 @@ def validate_profiles(paths: AppPaths) -> Tuple[List[str], List[str]]:
                 elif Path(str(target)).is_absolute() or ".." in Path(str(target)).parts:
                     errors.append(f"{label}: secrets[{index}].target must stay inside the worktree")
 
+        initializers = profile.get("init")
+        if initializers is None:
+            initializers = []
+        if not isinstance(initializers, list):
+            errors.append(f"{label}: init must be a list")
+        else:
+            for index, entry in enumerate(initializers):
+                if not isinstance(entry, dict):
+                    errors.append(f"{label}: init[{index}] must be a mapping")
+                    continue
+                command = entry.get("command")
+                if (
+                    not isinstance(command, list)
+                    or not command
+                    or not all(isinstance(value, str) for value in command)
+                    or not command[0].strip()
+                ):
+                    errors.append(
+                        f"{label}: init[{index}].command must be a non-empty string list"
+                    )
+                args = entry.get("args", [])
+                if not isinstance(args, list) or not all(
+                    isinstance(value, str) for value in args
+                ):
+                    errors.append(f"{label}: init[{index}].args must be a string list")
+                cwd = entry.get("cwd")
+                if not isinstance(cwd, str) or not cwd.strip():
+                    errors.append(f"{label}: init[{index}].cwd is required")
+
     if not profiles:
         warnings.append(f"no profiles found in {paths.profiles}")
     return errors, warnings

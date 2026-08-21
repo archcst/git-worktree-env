@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- Changed profile initializers to `command` and `args` string arrays, executed
+  directly without an implicit shell.
+
 ## [0.2.0] - 2026-08-21
 
 - Renamed the PyPI package and GitHub repository from `git-worktree-env` to

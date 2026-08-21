@@ -32,3 +32,36 @@ def test_validation_rejects_duplicate_main_worktrees(app_paths, git_worktrees):
     errors, _warnings = validate_profiles(app_paths)
 
     assert any("also configured" in error for error in errors)
+
+
+def test_validation_accepts_initializer_command_and_args_lists(app_paths, tmp_path):
+    (app_paths.profiles / "example.yaml").write_text(
+        "name: example\n"
+        f"match:\n  main_worktree: {tmp_path}\n"
+        "ports:\n  - id: web\n"
+        "init:\n"
+        "  - command: [npm]\n"
+        "    args: [install]\n"
+        "    cwd: .\n"
+    )
+
+    errors, _warnings = validate_profiles(app_paths)
+
+    assert not errors
+
+
+def test_validation_rejects_initializer_string_command(app_paths, tmp_path):
+    (app_paths.profiles / "example.yaml").write_text(
+        "name: example\n"
+        f"match:\n  main_worktree: {tmp_path}\n"
+        "ports:\n  - id: web\n"
+        "init:\n"
+        "  - command: npm install\n"
+        "    cwd: .\n"
+    )
+
+    errors, _warnings = validate_profiles(app_paths)
+
+    assert any(
+        "init[0].command must be a non-empty string list" in error for error in errors
+    )
