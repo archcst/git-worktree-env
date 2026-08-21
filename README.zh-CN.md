@@ -188,7 +188,7 @@ wte monitor enable
 Reconciler 会：
 
 1. 执行 `git worktree list --porcelain` 获取真实 Worktree 列表。
-2. 与 `ports.json` 对比，为尚未注册的 Worktree 分配端口、挂载 Secrets、生成文件。
+2. 与 `ports.json` 对比，为尚未注册的 Worktree 分配端口、挂载 Secrets、生成文件并启动配置的初始化命令。
 
 新增 Profile 或修改 `main_worktree` 路径后，需要再次执行：
 
@@ -230,7 +230,7 @@ init:
   → 用户或 AI 启动项目时，依赖通常已经准备完成
 ```
 
-异步初始化只由正常的 `post-checkout` Hook 启动。`wte sync` 和 Monitor Reconciler 都不会执行这些命令，避免手动同步或后台补偿重复启动耗时任务。
+异步初始化由正常的 `post-checkout` Hook 启动；当 Monitor Reconciler 发现尚未注册的 Worktree 时也会启动。Reconciler 不会重复处理已注册的 Worktree，同时每条命令的 `skip_if` 标记可进一步避免重复初始化。`wte sync` 不会执行初始化命令。
 
 ## `wte` 支持的命令
 

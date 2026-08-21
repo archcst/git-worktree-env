@@ -110,7 +110,10 @@ def reconcile_once(paths: AppPaths) -> ReconcileResult:
             # Git may publish common-dir metadata before checkout is complete.
             if worktree_root(candidate) != candidate:
                 raise WteError(f"worktree root is not stable yet: {candidate}")
-            result = apply_worktree(paths, candidate, setup=False)
+            # The reconciler is the fallback for sandboxed Git clients that
+            # cannot invoke the host's post-checkout hook, so it must perform
+            # the same asynchronous initialization for a new worktree.
+            result = apply_worktree(paths, candidate, setup=True)
             if result is None:
                 continue
             print_apply_result(result)

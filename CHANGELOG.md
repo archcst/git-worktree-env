@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-21
+
+- Run profile initializers from the Monitor Reconciler so worktrees created by
+  sandboxed coding agents and IDEs receive the same setup as hook-created worktrees.
+
 ## [0.3.0] - 2026-08-21
 
 - Changed profile initializers to `command` and `args` string arrays, executed

@@ -55,6 +55,30 @@ def test_reconciler_projects_only_unregistered_worktrees(
     assert (linked / "generated.env").exists()
 
 
+def test_reconciler_runs_initializers_for_unregistered_worktrees(
+    app_paths, git_worktrees, monkeypatch
+):
+    main, linked = git_worktrees
+    (app_paths.profiles / "example.yaml").write_text(
+        "name: example\n"
+        f"match:\n  main_worktree: {main}\n"
+        "ports:\n  - id: web\n"
+        "init:\n  - command: [tool]\n    cwd: .\n"
+    )
+    monkeypatch.setattr("worktree_env.registry.port_is_free", lambda _port: True)
+    initialized = []
+    monkeypatch.setattr(
+        "worktree_env.projector.run_initializers",
+        lambda _profile, root: initialized.append(root),
+    )
+
+    reconcile_once(app_paths)
+    reconcile_once(app_paths)
+
+    assert set(initialized) == {main.resolve(), linked.resolve()}
+    assert len(initialized) == 2
+
+
 def test_launch_agent_watches_common_git_metadata(
     app_paths, tmp_path, monkeypatch
 ):

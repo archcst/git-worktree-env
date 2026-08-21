@@ -235,8 +235,8 @@ minimal.
 The Reconciler:
 
 1. Runs `git worktree list --porcelain` to retrieve the actual list of worktrees.
-2. Compares it with `ports.json`, then assigns ports, mounts secrets, and generates
-   files for unregistered worktrees.
+2. Compares it with `ports.json`, then assigns ports, mounts secrets, generates
+   files, and starts configured initializers for unregistered worktrees.
 
 After adding a profile or changing a `main_worktree` path, run this command again:
 
@@ -279,10 +279,10 @@ Create a worktree
   → By the time the user or AI starts the project, dependencies are usually ready
 ```
 
-Asynchronous initialization is started only by the normal `post-checkout` hook.
-Neither `wte sync` nor the Monitor Reconciler runs these commands, preventing manual
-synchronization or background reconciliation from repeatedly starting expensive
-tasks.
+Asynchronous initialization is started by the normal `post-checkout` hook or by the
+Monitor Reconciler when it discovers an unregistered worktree. The Reconciler does
+not process registered worktrees again, and each command's `skip_if` marker provides
+additional protection against repeated setup. `wte sync` does not run initializers.
 
 ## Commands supported by `wte`
 

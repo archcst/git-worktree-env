@@ -53,9 +53,9 @@ writes:
       PORT=${backend}
       CORS_ORIGIN=http://127.0.0.1:${frontend}
 
-# Optional post-checkout initializers. Commands are trusted local configuration
-# executed directly in the background. args are appended to command, and skip_if
-# is resolved relative to cwd.
+# Optional worktree initializers started by post-checkout or the Monitor Reconciler.
+# Commands are trusted local configuration executed directly in the background.
+# args are appended to command, and skip_if is resolved relative to cwd.
 init:
   - command: [npm]
     args: [install]
