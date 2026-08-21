@@ -1,4 +1,4 @@
-# git-worktree-env (`wte`)
+# worktree-env (`wte`)
 
 [English](README.md)
 
@@ -49,14 +49,29 @@ Hook 不随仓库提交，本地全局可用，不污染任何代码。
 ## 安装
 
 ```bash
-uv tool install git-worktree-env
+uv tool install worktree-env
 ```
 
 ## 升级
 
 ```bash
-uv tool upgrade git-worktree-env
+uv tool upgrade worktree-env
 ```
+
+## 从 `git-worktree-env` 迁移
+
+PyPI 包和 GitHub 仓库已从 0.2.0 起更名。现有 `~/.config/wte/` 配置完全兼容：
+
+```bash
+uv tool uninstall git-worktree-env
+uv tool install worktree-env
+wte init
+# 如果之前启用了可选的 Monitor：
+wte monitor enable
+```
+
+运行 `wte init` 会刷新 Git Hook 中记录的绝对可执行文件路径。`wte` 命令及现有的
+Profile 和运行状态均保持不变。
 
 ## 开始使用
 

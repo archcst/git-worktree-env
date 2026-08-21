@@ -1,12 +1,12 @@
 # Contributing
 
-Thank you for improving git-worktree-env.
+Thank you for improving worktree-env.
 
 ## Development setup
 
 ```bash
-git clone https://github.com/archcst/git-worktree-env.git
-cd git-worktree-env
+git clone https://github.com/archcst/worktree-env.git
+cd worktree-env
 uv sync
 uv run pytest
 ```

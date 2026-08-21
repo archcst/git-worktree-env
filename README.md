@@ -1,4 +1,4 @@
-# git-worktree-env (`wte`)
+# worktree-env (`wte`)
 
 [中文文档](README.zh-CN.md)
 
@@ -83,14 +83,30 @@ immediately after creation.
 ## Installation
 
 ```bash
-uv tool install git-worktree-env
+uv tool install worktree-env
 ```
 
 ## Upgrading
 
 ```bash
-uv tool upgrade git-worktree-env
+uv tool upgrade worktree-env
 ```
+
+## Migrating from `git-worktree-env`
+
+The PyPI package and GitHub repository were renamed in version 0.2.0. Existing
+configuration under `~/.config/wte/` is fully compatible:
+
+```bash
+uv tool uninstall git-worktree-env
+uv tool install worktree-env
+wte init
+# If you previously enabled the optional Monitor:
+wte monitor enable
+```
+
+Running `wte init` refreshes the Git hook's absolute executable path. The `wte`
+command and all existing profiles and state remain unchanged.
 
 ## Getting started
 

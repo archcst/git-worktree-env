@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from importlib import metadata
 from typing import Optional, Sequence
 
 from . import __version__
@@ -24,6 +25,25 @@ from .utils import WteError, expand_profile_path, log, run_git
 
 INTERNAL_HOOK_COMMAND = "_hook"
 INTERNAL_RECONCILE_COMMAND = "_reconcile"
+LEGACY_DISTRIBUTION = "git-worktree-env"
+
+
+def _warn_if_legacy_distribution_installed() -> None:
+    """Tell users of the transition package how to adopt the new package name."""
+    try:
+        metadata.distribution(LEGACY_DISTRIBUTION)
+    except metadata.PackageNotFoundError:
+        return
+
+    print(
+        "[wte] warning: git-worktree-env has been renamed to worktree-env.\n"
+        "[wte] migrate: uv tool uninstall git-worktree-env && "
+        "uv tool install worktree-env\n"
+        "[wte] then run 'wte init' to refresh the Git hook; refresh the monitor "
+        "with 'wte monitor enable' if used.\n"
+        "[wte] your existing ~/.config/wte configuration will be preserved.",
+        file=sys.stderr,
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -188,6 +208,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if arguments and arguments[0] == INTERNAL_RECONCILE_COMMAND:
         return _cmd_internal_reconcile(paths)
 
+    _warn_if_legacy_distribution_installed()
     args = _build_parser().parse_args(arguments)
     try:
         if args.command == "init":

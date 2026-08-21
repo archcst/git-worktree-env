@@ -3,8 +3,8 @@ requires = ["hatchling>=1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "git-worktree-env"
-version = "0.1.4"
+name = "worktree-env"
+version = "0.2.0"
 description = "Per-worktree ports, secrets, and local environment setup for Git"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -32,13 +32,13 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/archcst/git-worktree-env"
-Repository = "https://github.com/archcst/git-worktree-env"
-Issues = "https://github.com/archcst/git-worktree-env/issues"
+Homepage = "https://github.com/archcst/worktree-env"
+Repository = "https://github.com/archcst/worktree-env"
+Issues = "https://github.com/archcst/worktree-env/issues"
 
 [project.scripts]
 wte = "git_worktree_env.cli:main"
-git-worktree-env = "git_worktree_env.cli:main"
+worktree-env = "git_worktree_env.cli:main"
 
 [dependency-groups]
 dev = [

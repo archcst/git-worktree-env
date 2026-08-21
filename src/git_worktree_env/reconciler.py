@@ -182,7 +182,7 @@ def _write_systemd_units(executable: Path, watched: Tuple[Path, ...]) -> Tuple[P
     path_unit = unit_dir / SYSTEMD_PATH
     escaped_executable = str(executable).replace("%", "%%")
     service.write_text(
-        "[Unit]\nDescription=Reconcile git-worktree-env projects\n\n"
+        "[Unit]\nDescription=Reconcile worktree-env projects\n\n"
         "[Service]\nType=oneshot\n"
         f'ExecStart="{escaped_executable}" _reconcile\n'
     )
