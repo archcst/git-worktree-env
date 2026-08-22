@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-22
+
+- Standardized user-facing configuration keys on hyphenated names while keeping
+  underscore-based profile and port-range keys as backward-compatible aliases.
+
 ## [0.3.1] - 2026-08-21
 
 - Run profile initializers from the Monitor Reconciler so worktrees created by

@@ -17,6 +17,21 @@ Profile = Dict[str, Any]
 PORT_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
+def aliased_value(
+    mapping: Dict[str, Any], canonical: str, *legacy: str, default: Any = None
+) -> Any:
+    """Read a canonical configuration key, falling back to legacy aliases."""
+    for key in (canonical, *legacy):
+        if key in mapping:
+            return mapping[key]
+    return default
+
+
+def _selected_key(mapping: Dict[str, Any], canonical: str, *legacy: str) -> str:
+    """Return the key whose value :func:`aliased_value` will select."""
+    return next((key for key in (canonical, *legacy) if key in mapping), canonical)
+
+
 def parse_profile(path: Path) -> Profile:
     """Parse one YAML or JSON profile and attach its source path."""
     try:
@@ -96,7 +111,11 @@ def main_worktree_root(root: Path) -> Path:
 def configured_main_worktree(profile: Profile) -> Optional[Path]:
     """Return the normalized main-worktree path configured by a profile."""
     match = profile.get("match") or {}
-    raw = match.get("main_worktree") if isinstance(match, dict) else None
+    raw = (
+        aliased_value(match, "main-worktree", "main_worktree")
+        if isinstance(match, dict)
+        else None
+    )
     if not raw:
         return None
     return expand_home(str(raw)).resolve()
@@ -118,8 +137,15 @@ def find_profile(paths: AppPaths, root: Path) -> Optional[Profile]:
     return hits[0]
 
 
+def port_claims_value(profile: Profile) -> Any:
+    """Read port claims while preserving the older ``ports``/``services`` fallback."""
+    if "port-claims" in profile:
+        return profile["port-claims"]
+    return profile.get("ports") or profile.get("services") or []
+
+
 def _port_claims(profile: Profile) -> Sequence[Dict[str, Any]]:
-    raw = profile.get("ports") or profile.get("services") or []
+    raw = port_claims_value(profile)
     return raw if isinstance(raw, list) else []
 
 
@@ -146,12 +172,19 @@ def validate_profiles(paths: AppPaths) -> Tuple[List[str], List[str]]:
             names[name] = source
 
         match = profile.get("match") or {}
-        main_raw = match.get("main_worktree") if isinstance(match, dict) else None
+        if isinstance(match, dict):
+            main_key = _selected_key(match, "main-worktree", "main_worktree")
+            main_raw = aliased_value(match, "main-worktree", "main_worktree")
+        else:
+            main_key = "main-worktree"
+            main_raw = None
         main_root = configured_main_worktree(profile)
         if main_root is None:
-            errors.append(f"{label}: match.main_worktree is required")
+            errors.append(f"{label}: match.{main_key} is required")
         elif not expand_home(str(main_raw)).is_absolute():
-            errors.append(f"{label}: match.main_worktree must be an absolute or home-relative path")
+            errors.append(
+                f"{label}: match.{main_key} must be an absolute or home-relative path"
+            )
         elif main_root in main_roots:
             errors.append(
                 f"{label}: main worktree is also configured by {main_roots[main_root].name}"
@@ -161,64 +194,85 @@ def validate_profiles(paths: AppPaths) -> Tuple[List[str], List[str]]:
             if not main_root.exists():
                 warnings.append(f"{label}: main worktree does not exist: {main_root}")
 
+        if "port-claims" in profile:
+            claims_key = "port-claims"
+        elif profile.get("ports") or "services" not in profile:
+            claims_key = "ports"
+        else:
+            claims_key = "services"
         claims = _port_claims(profile)
         if not claims:
-            errors.append(f"{label}: ports must contain at least one claim")
+            errors.append(f"{label}: {claims_key} must contain at least one claim")
             continue
         ids: List[str] = []
         for index, claim in enumerate(claims):
             port_id = claim.get("id") if isinstance(claim, dict) else None
             if not isinstance(port_id, str) or not PORT_ID.match(port_id):
-                errors.append(f"{label}: ports[{index}].id is invalid")
+                errors.append(f"{label}: {claims_key}[{index}].id is invalid")
             elif port_id in ids:
                 errors.append(f"{label}: duplicate port id {port_id!r}")
             else:
                 ids.append(port_id)
 
         mapping = {port_id: "0" for port_id in ids}
-        writes = profile.get("writes") or []
+        writes_key = _selected_key(profile, "write-files", "writes")
+        writes = aliased_value(profile, "write-files", "writes", default=[])
+        if writes is None:
+            writes = []
         if not isinstance(writes, list):
-            errors.append(f"{label}: writes must be a list")
+            errors.append(f"{label}: {writes_key} must be a list")
             continue
         for index, spec in enumerate(writes):
             if not isinstance(spec, dict):
-                errors.append(f"{label}: writes[{index}] must be a mapping")
+                errors.append(f"{label}: {writes_key}[{index}] must be a mapping")
                 continue
             write_path = spec.get("path")
             if not write_path:
-                errors.append(f"{label}: writes[{index}].path is required")
+                errors.append(f"{label}: {writes_key}[{index}].path is required")
             elif Path(str(write_path)).is_absolute() or ".." in Path(str(write_path)).parts:
-                errors.append(f"{label}: writes[{index}].path must stay inside the worktree")
+                errors.append(
+                    f"{label}: {writes_key}[{index}].path must stay inside the worktree"
+                )
             try:
                 Template(str(spec.get("body") or "")).substitute(mapping)
             except (KeyError, ValueError) as exc:
-                errors.append(f"{label}: writes[{index}].body has an invalid variable: {exc}")
+                errors.append(
+                    f"{label}: {writes_key}[{index}].body has an invalid variable: {exc}"
+                )
 
-        secrets = profile.get("secrets") or []
-        if not isinstance(secrets, list):
-            errors.append(f"{label}: secrets must be a list")
+        links_key = _selected_key(profile, "link-files", "secrets")
+        links = aliased_value(profile, "link-files", "secrets", default=[])
+        if links is None:
+            links = []
+        if not isinstance(links, list):
+            errors.append(f"{label}: {links_key} must be a list")
         else:
-            for index, entry in enumerate(secrets):
+            for index, entry in enumerate(links):
                 if not isinstance(entry, dict):
-                    errors.append(f"{label}: secrets[{index}] must be a mapping")
+                    errors.append(f"{label}: {links_key}[{index}] must be a mapping")
                     continue
                 if not entry.get("source"):
-                    errors.append(f"{label}: secrets[{index}].source is required")
+                    errors.append(f"{label}: {links_key}[{index}].source is required")
                 target = entry.get("target")
                 if not target:
-                    errors.append(f"{label}: secrets[{index}].target is required")
+                    errors.append(f"{label}: {links_key}[{index}].target is required")
                 elif Path(str(target)).is_absolute() or ".." in Path(str(target)).parts:
-                    errors.append(f"{label}: secrets[{index}].target must stay inside the worktree")
+                    errors.append(
+                        f"{label}: {links_key}[{index}].target must stay inside the worktree"
+                    )
 
-        initializers = profile.get("init")
-        if initializers is None:
-            initializers = []
-        if not isinstance(initializers, list):
-            errors.append(f"{label}: init must be a list")
+        setup_key = _selected_key(profile, "setup-commands", "init")
+        setup_commands = aliased_value(
+            profile, "setup-commands", "init", default=[]
+        )
+        if setup_commands is None:
+            setup_commands = []
+        if not isinstance(setup_commands, list):
+            errors.append(f"{label}: {setup_key} must be a list")
         else:
-            for index, entry in enumerate(initializers):
+            for index, entry in enumerate(setup_commands):
                 if not isinstance(entry, dict):
-                    errors.append(f"{label}: init[{index}] must be a mapping")
+                    errors.append(f"{label}: {setup_key}[{index}] must be a mapping")
                     continue
                 command = entry.get("command")
                 if (
@@ -228,16 +282,18 @@ def validate_profiles(paths: AppPaths) -> Tuple[List[str], List[str]]:
                     or not command[0].strip()
                 ):
                     errors.append(
-                        f"{label}: init[{index}].command must be a non-empty string list"
+                        f"{label}: {setup_key}[{index}].command must be a non-empty string list"
                     )
                 args = entry.get("args", [])
                 if not isinstance(args, list) or not all(
                     isinstance(value, str) for value in args
                 ):
-                    errors.append(f"{label}: init[{index}].args must be a string list")
+                    errors.append(
+                        f"{label}: {setup_key}[{index}].args must be a string list"
+                    )
                 cwd = entry.get("cwd")
                 if not isinstance(cwd, str) or not cwd.strip():
-                    errors.append(f"{label}: init[{index}].cwd is required")
+                    errors.append(f"{label}: {setup_key}[{index}].cwd is required")
 
     if not profiles:
         warnings.append(f"no profiles found in {paths.profiles}")

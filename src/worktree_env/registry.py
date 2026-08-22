@@ -13,7 +13,7 @@ from typing import Any, Dict, Iterator, Set, Tuple
 
 from .config import PortPool
 from .paths import AppPaths
-from .profiles import Profile
+from .profiles import Profile, port_claims_value
 from .utils import WteError
 
 Registry = Dict[str, Any]
@@ -126,7 +126,7 @@ def allocate_ports(
     pool: PortPool,
 ) -> Tuple[int, Dict[str, int]]:
     """Reuse a valid sticky allocation or claim the first free contiguous block."""
-    claims = profile.get("ports") or profile.get("services") or []
+    claims = port_claims_value(profile)
     if not isinstance(claims, list) or not claims:
         raise WteError(f"profile {profile.get('name')} has no ports to claim")
     try:

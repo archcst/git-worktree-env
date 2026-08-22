@@ -114,7 +114,7 @@ wte init
 全机端口范围位于 `~/.config/wte/config.yaml`：
 
 ```yaml
-port_range:
+port-range:
   start: 20000
   end: 29999
 ```
@@ -137,14 +137,14 @@ name: example-project
 
 match:
   # 指向该项目的 main worktree 目录。
-  main_worktree: $HOME/code/example-app
+  main-worktree: $HOME/code/example-app
 
-ports:
+port-claims:
   # 需要申请的端口的名称，项目需要多少就申请多少，id 在同一个 profile 中应保持唯一
   - id: frontend_port
   - id: backend_port
 
-secrets:
+link-files:
   # 软链接共享的环境变量
   # source 指向原始环境变量文件，target 是目标位置，路径是基于 worktree 根目录的相对路径。
   - source: $HOME/path/to/your/frontend.env
@@ -152,7 +152,7 @@ secrets:
   - source: $HOME/path/to/your/backend.env
     target: backend-dir/.env
 
-writes:
+write-files:
   # 前端配置：
   - path: frontend-dir/.env.development
     body: |
@@ -168,6 +168,9 @@ writes:
 > 该示例适用于前后端均可加载 `.env.{env name}` 的情况，请根据具体项目环境变量加载方式自行修改。
 >
 > Worktree 目录删除后，其对应的端口会在下一次触发 `wte` 时被回收。
+>
+> 旧版本生成的配置仍然兼容。旧配置项 `port_range`、`main_worktree`、`ports`、
+> `secrets`、`writes`、`init` 和 `skip_if` 均作为上述短横线配置项的别名继续支持。
 
 ## Monitor 说明
 
@@ -190,7 +193,7 @@ Reconciler 会：
 1. 执行 `git worktree list --porcelain` 获取真实 Worktree 列表。
 2. 与 `ports.json` 对比，为尚未注册的 Worktree 分配端口、挂载 Secrets、生成文件并启动配置的初始化命令。
 
-新增 Profile 或修改 `main_worktree` 路径后，需要再次执行：
+新增 Profile 或修改 `main-worktree` 路径后，需要再次执行：
 
 ```bash
 wte monitor enable
@@ -209,16 +212,16 @@ wte monitor disable
 `wte` 可在 Worktree 创建后自动运行命令，可用于环境初始化：
 
 ```yaml
-init:
+setup-commands:
   - command: [npm]
     args: [install]
     cwd: frontend-dir # 若在 Worktree 根目录执行，则填写“.”
-    skip_if: node_modules # 若该文件或目录存在，则跳过该命令
+    skip-if: node_modules # 若该文件或目录存在，则跳过该命令
 
   - command: [uv]
     args: [sync]
     cwd: backend-dir # 若在 Worktree 根目录执行，则填写“.”
-    skip_if: .venv # 若该文件或目录存在，则跳过该命令
+    skip-if: .venv # 若该文件或目录存在，则跳过该命令
 ```
 
 典型时间线如下：
@@ -230,7 +233,7 @@ init:
   → 用户或 AI 启动项目时，依赖通常已经准备完成
 ```
 
-异步初始化由正常的 `post-checkout` Hook 启动；当 Monitor Reconciler 发现尚未注册的 Worktree 时也会启动。Reconciler 不会重复处理已注册的 Worktree，同时每条命令的 `skip_if` 标记可进一步避免重复初始化。`wte sync` 不会执行初始化命令。
+异步初始化由正常的 `post-checkout` Hook 启动；当 Monitor Reconciler 发现尚未注册的 Worktree 时也会启动。Reconciler 不会重复处理已注册的 Worktree，同时每条命令的 `skip-if` 标记可进一步避免重复初始化。`wte sync` 不会执行初始化命令。
 
 ## `wte` 支持的命令
 

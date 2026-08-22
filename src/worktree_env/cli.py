@@ -12,7 +12,7 @@ from . import __version__
 from .config import initialize_config, initialize_profile_template, load_port_pool
 from .hooks import hooks_status, install_hooks, uninstall_hooks
 from .paths import AppPaths
-from .profiles import load_profiles, validate_profiles, worktree_root
+from .profiles import aliased_value, load_profiles, validate_profiles, worktree_root
 from .projector import apply_worktree, print_apply_result
 from .reconciler import (
     install_monitor,
@@ -144,7 +144,7 @@ def _cmd_doctor(paths: AppPaths) -> int:
         print(f"[wte] warning: reconciler is not active ({monitor.detail})")
 
     for profile in load_profiles(paths, strict=False):
-        for entry in profile.get("secrets") or []:
+        for entry in aliased_value(profile, "link-files", "secrets", default=[]) or []:
             if not isinstance(entry, dict) or not entry.get("source"):
                 continue
             source = expand_profile_path(str(entry["source"]), profile).resolve()

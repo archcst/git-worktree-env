@@ -2,21 +2,21 @@
 name: example-fullstack
 
 match:
-  main_worktree: $HOME/code/example-app
+  main-worktree: $HOME/code/example-app
 
 # Claims are allocated as one contiguous block in declaration order.
-ports:
+port-claims:
   - id: frontend
   - id: backend
 
 # Sources stay outside Git. Targets are symlinks inside every linked worktree.
-secrets:
+link-files:
   - source: $HOME/.config/example-app/frontend.env
     target: apps/frontend/.env
   - source: $HOME/.config/example-app/backend.env
     target: apps/backend/.env
 
-writes:
+write-files:
   - path: apps/frontend/.env.development
     body: |
       VITE_PORT=${frontend}
@@ -29,12 +29,12 @@ writes:
 
 # Initializers run in the background only from the post-checkout hook.
 # Each command is trusted local configuration and is executed directly.
-init:
+setup-commands:
   - command: [npm]
     args: [install]
     cwd: apps/frontend
-    skip_if: node_modules
+    skip-if: node_modules
   - command: [uv]
     args: [sync]
     cwd: apps/backend
-    skip_if: .venv
+    skip-if: .venv

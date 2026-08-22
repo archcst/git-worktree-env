@@ -14,7 +14,7 @@ from .utils import WteError
 DEFAULT_POOL_START = 20000
 DEFAULT_POOL_END = 29999
 DEFAULT_PROFILE_TEMPLATE_NAME = "project.example.yaml.template"
-DEFAULT_CONFIG = """# Inclusive range used for per-worktree port allocation.\nport_range:\n  start: 20000\n  end: 29999\n"""
+DEFAULT_CONFIG = """# Inclusive range used for per-worktree port allocation.\nport-range:\n  start: 20000\n  end: 29999\n"""
 DEFAULT_PROFILE_TEMPLATE = """# Copy this file to a root-level *.yaml file, then edit every example value.
 # Example: cp project.example.yaml.template my-project.yaml
 # Run `wte monitor enable` after adding or changing profiles to refresh monitoring.
@@ -25,24 +25,24 @@ name: example-fullstack
 match:
   # Exact path of this project's dedicated main worktree. Linked worktrees
   # created from it are matched automatically, regardless of their location.
-  main_worktree: $HOME/code/example-app
+  main-worktree: $HOME/code/example-app
 
 # Port IDs form one contiguous block in declaration order. Use each ID as a
-# ${placeholder} in writes below.
-ports:
+# ${placeholder} in write-files below.
+port-claims:
   - id: frontend
   - id: backend
 
 # Optional local secret files. Sources stay outside Git; targets are replaced
 # with symlinks inside each matched worktree.
-secrets:
+link-files:
   - source: $HOME/.config/example-app/frontend.env
     target: apps/frontend/.env
   - source: $HOME/.config/example-app/backend.env
     target: apps/backend/.env
 
 # Optional generated files. Each target is overwritten completely on sync.
-writes:
+write-files:
   - path: apps/frontend/.env.development
     body: |
       VITE_PORT=${frontend}
@@ -55,16 +55,16 @@ writes:
 
 # Optional worktree initializers started by post-checkout or the Monitor Reconciler.
 # Commands are trusted local configuration executed directly in the background.
-# args are appended to command, and skip_if is resolved relative to cwd.
-init:
+# args are appended to command, and skip-if is resolved relative to cwd.
+setup-commands:
   - command: [npm]
     args: [install]
     cwd: apps/frontend
-    skip_if: node_modules
+    skip-if: node_modules
   - command: [uv]
     args: [sync]
     cwd: apps/backend
-    skip_if: .venv
+    skip-if: .venv
 """
 
 
@@ -77,11 +77,11 @@ class PortPool:
 
     def validate(self) -> None:
         if not 1 <= self.start <= 65535:
-            raise WteError(f"port_range.start is outside 1-65535: {self.start}")
+            raise WteError(f"port-range.start is outside 1-65535: {self.start}")
         if not 1 <= self.end <= 65535:
-            raise WteError(f"port_range.end is outside 1-65535: {self.end}")
+            raise WteError(f"port-range.end is outside 1-65535: {self.end}")
         if self.end < self.start:
-            raise WteError("port_range.end must be greater than or equal to port_range.start")
+            raise WteError("port-range.end must be greater than or equal to port-range.start")
 
 
 def _load_yaml_mapping(path: Path) -> Dict[str, Any]:
@@ -101,16 +101,20 @@ def load_port_pool(paths: AppPaths) -> PortPool:
         pool.validate()
         return pool
     data = _load_yaml_mapping(paths.config)
-    if "pool" in data and "port_range" not in data:
-        raise WteError("config key 'pool' was renamed to 'port_range'")
-    raw_pool = data.get("port_range") or {}
+    if "pool" in data and "port-range" not in data and "port_range" not in data:
+        raise WteError("config key 'pool' was renamed to 'port-range'")
+    if "port-range" in data:
+        raw_pool = data["port-range"]
+    else:
+        # ``port_range`` remains supported for configs created by older releases.
+        raw_pool = data.get("port_range") or {}
     if not isinstance(raw_pool, dict):
-        raise WteError(f"port_range must be a mapping: {paths.config}")
+        raise WteError(f"port-range must be a mapping: {paths.config}")
     try:
         start = int(raw_pool.get("start") or DEFAULT_POOL_START)
         end = int(raw_pool.get("end") or DEFAULT_POOL_END)
     except (TypeError, ValueError) as exc:
-        raise WteError("port_range.start and port_range.end must be integers") from exc
+        raise WteError("port-range.start and port-range.end must be integers") from exc
     pool = PortPool(start, end)
     pool.validate()
     return pool

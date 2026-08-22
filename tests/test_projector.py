@@ -5,18 +5,34 @@ from worktree_env.registry import load_registry
 from worktree_env.utils import WteError
 
 
-def test_projection_links_secrets_and_writes_ports(app_paths, git_worktrees, tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    ("main_key", "claims_key", "links_key", "writes_key"),
+    [
+        ("main-worktree", "port-claims", "link-files", "write-files"),
+        ("main_worktree", "ports", "secrets", "writes"),
+    ],
+)
+def test_projection_links_secrets_and_writes_ports(
+    app_paths,
+    git_worktrees,
+    tmp_path,
+    monkeypatch,
+    main_key,
+    claims_key,
+    links_key,
+    writes_key,
+):
     main, linked = git_worktrees
     secret = tmp_path / "backend.env"
     secret.write_text("TOKEN=test\n")
     (app_paths.profiles / "example.yaml").write_text(
         "name: example\n"
-        f"match:\n  main_worktree: {main}\n"
-        "ports:\n  - id: frontend\n  - id: backend\n"
-        "secrets:\n"
+        f"match:\n  {main_key}: {main}\n"
+        f"{claims_key}:\n  - id: frontend\n  - id: backend\n"
+        f"{links_key}:\n"
         f"  - source: {secret}\n"
         "    target: app/.env\n"
-        "writes:\n"
+        f"{writes_key}:\n"
         "  - path: app/.env.development\n"
         "    body: |\n"
         "      PORT=${frontend}\n"
@@ -39,17 +55,22 @@ def test_projection_links_secrets_and_writes_ports(app_paths, git_worktrees, tmp
     assert load_registry(app_paths)[str(linked)]["profile"] == "example"
 
 
+@pytest.mark.parametrize(
+    ("setup_key", "skip_key"),
+    [("setup-commands", "skip-if"), ("init", "skip_if")],
+)
 def test_initializers_execute_command_and_args_without_a_shell(
-    tmp_path, monkeypatch, capsys
+    tmp_path, monkeypatch, capsys, setup_key, skip_key
 ):
     calls = []
     profile = {
         "name": "example",
-        "init": [
+        setup_key: [
             {
                 "command": ["tool", "subcommand"],
                 "args": ["literal;value", "two words"],
                 "cwd": ".",
+                skip_key: "missing-marker",
             }
         ],
     }

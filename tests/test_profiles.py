@@ -34,12 +34,12 @@ def test_validation_rejects_duplicate_main_worktrees(app_paths, git_worktrees):
     assert any("also configured" in error for error in errors)
 
 
-def test_validation_accepts_initializer_command_and_args_lists(app_paths, tmp_path):
+def test_validation_accepts_setup_command_and_args_lists(app_paths, tmp_path):
     (app_paths.profiles / "example.yaml").write_text(
         "name: example\n"
-        f"match:\n  main_worktree: {tmp_path}\n"
-        "ports:\n  - id: web\n"
-        "init:\n"
+        f"match:\n  main-worktree: {tmp_path}\n"
+        "port-claims:\n  - id: web\n"
+        "setup-commands:\n"
         "  - command: [npm]\n"
         "    args: [install]\n"
         "    cwd: .\n"

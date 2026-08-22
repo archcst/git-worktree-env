@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 
 from .config import load_port_pool
 from .paths import AppPaths
-from .profiles import Profile, find_profile
+from .profiles import Profile, aliased_value, find_profile
 from .registry import (
     allocate_ports,
     load_registry,
@@ -41,7 +41,7 @@ def render_template(body: str, ports: Dict[str, int]) -> str:
 
 
 def _secret_entries(profile: Profile) -> List[Dict[str, Any]]:
-    raw = profile.get("secrets") or []
+    raw = aliased_value(profile, "link-files", "secrets", default=[]) or []
     return [item for item in raw if isinstance(item, dict)] if isinstance(raw, list) else []
 
 
@@ -67,9 +67,9 @@ def apply_secrets(profile: Profile, root: Path) -> None:
 
 def apply_writes(profile: Profile, root: Path, ports: Dict[str, int]) -> None:
     """Render complete generated files declared by the profile."""
-    writes = profile.get("writes") or []
+    writes = aliased_value(profile, "write-files", "writes", default=[]) or []
     if not isinstance(writes, list):
-        raise WteError(f"profile {profile.get('name')} has an invalid writes section")
+        raise WteError(f"profile {profile.get('name')} has an invalid write-files section")
     for spec in writes:
         if not isinstance(spec, dict) or not spec.get("path"):
             raise WteError(f"profile {profile.get('name')} has an invalid write entry")
@@ -84,7 +84,7 @@ def apply_writes(profile: Profile, root: Path, ports: Dict[str, int]) -> None:
 
 
 def _init_entries(profile: Profile) -> List[Dict[str, Any]]:
-    raw = profile.get("init") or []
+    raw = aliased_value(profile, "setup-commands", "init", default=[]) or []
     return [item for item in raw if isinstance(item, dict)] if isinstance(raw, list) else []
 
 
@@ -115,7 +115,7 @@ def run_initializers(profile: Profile, root: Path) -> None:
         if not cwd.is_dir():
             log(f"initializer skipped; directory does not exist: {cwd}")
             continue
-        skip_if = item.get("skip_if")
+        skip_if = aliased_value(item, "skip-if", "skip_if")
         if skip_if:
             marker = expand_profile_path(str(skip_if), profile, root=cwd)
             if marker.exists():
