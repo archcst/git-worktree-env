@@ -163,23 +163,19 @@ write-files:
 wte monitor enable
 ```
 
-它会监控每个已配置 main worktree 对应的 `.git/worktrees/` 元数据目录：
+它会监控 Profile 配置目录，以及每个已配置 main worktree 对应的 `.git/worktrees/` 元数据目录：
 
-- macOS 使用带 `WatchPaths` 的 LaunchAgent。
-- Linux 使用 systemd user path unit。
+- macOS 使用带 `WatchPaths` 的 LaunchAgents。
+- Linux 使用 systemd user path units。
 
-目录变化时，操作系统启动一次短生命周期的 Reconciler。_它不是常驻 Daemon，也不进行定时轮询_，资源消耗极低。
+受监控目录变化时，操作系统启动一次短生命周期的 Reconciler。_它不是常驻 Daemon，也不进行定时轮询_，资源消耗极低。
 
 Reconciler 会：
 
 1. 执行 `git worktree list --porcelain` 获取真实 Worktree 列表。
 2. 与 `ports.json` 对比，为尚未注册的 Worktree 分配端口、挂载 Secrets、生成文件并启动配置的初始化命令。
 
-新增 Profile 或修改 `main-worktree` 路径后，需要再次执行：
-
-```bash
-wte monitor enable
-```
+新增、删除 Profile 或修改 `main-worktree` 后，Monitor 会自动刷新仓库监听路径。现有安装升级到该版本后，需要执行一次 `wte monitor enable` 以启用 Profile 自动监控；此后的 Profile 变更无需再手动刷新 Monitor。
 
 关闭 Monitor 可使用：
 

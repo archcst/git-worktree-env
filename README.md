@@ -206,13 +206,13 @@ To support these tools, enable the Monitor:
 wte monitor enable
 ```
 
-It watches the `.git/worktrees/` metadata directory associated with each configured
-main worktree:
+It watches the profile directory and the `.git/worktrees/` metadata directory
+associated with each configured main worktree:
 
-- macOS uses a LaunchAgent with `WatchPaths`.
-- Linux uses a systemd user path unit.
+- macOS uses LaunchAgents with `WatchPaths`.
+- Linux uses systemd user path units.
 
-When the directory changes, the operating system starts a short-lived Reconciler.
+When a watched directory changes, the operating system starts a short-lived Reconciler.
 _It is not a resident daemon and does not poll on a timer_, so its resource usage is
 minimal.
 
@@ -222,11 +222,10 @@ The Reconciler:
 2. Compares it with `ports.json`, then assigns ports, mounts secrets, generates
    files, and starts configured initializers for unregistered worktrees.
 
-After adding a profile or changing a `main-worktree` path, run this command again:
-
-```bash
-wte monitor enable
-```
+When profiles are added, removed, or pointed to a different `main-worktree`, the
+Monitor automatically refreshes its repository watch paths. After upgrading an
+existing installation to this version, run `wte monitor enable` once to activate
+automatic profile monitoring; subsequent profile changes require no manual refresh.
 
 To disable the Monitor, run:
 

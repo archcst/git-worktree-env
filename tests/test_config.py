@@ -44,7 +44,7 @@ def test_init_template_is_commented_and_not_an_active_yaml_profile(app_paths):
     assert "$HOME/.config/example-app/backend.env" in text
     assert "cwd: apps/frontend" in text
     assert "cwd: apps/backend" in text
-    assert "wte monitor enable" in text
+    assert "Monitor refreshes automatically" in text
 
 
 def test_legacy_port_range_key_remains_supported(app_paths):

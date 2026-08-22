@@ -18,6 +18,8 @@ from .reconciler import (
     install_monitor,
     monitor_status,
     reconcile_with_retry,
+    refresh_profile_file_monitor,
+    refresh_worktree_monitor,
     uninstall_monitor,
 )
 from .registry import load_registry, prune_registry
@@ -25,6 +27,8 @@ from .utils import WteError, expand_profile_path, log, run_git
 
 INTERNAL_HOOK_COMMAND = "_hook"
 INTERNAL_RECONCILE_COMMAND = "_reconcile"
+INTERNAL_PROFILES_CHANGED_COMMAND = "_profiles_changed"
+INTERNAL_PROFILE_SET_CHANGED_COMMAND = "_profile_set_changed"
 LEGACY_DISTRIBUTION = "git-worktree-env"
 
 
@@ -201,6 +205,40 @@ def _cmd_internal_reconcile(paths: AppPaths) -> int:
         return 1
 
 
+def _cmd_internal_profile_set_changed(paths: AppPaths) -> int:
+    """Refresh profile-file watches after profiles are added or removed."""
+    try:
+        files_refreshed = refresh_profile_file_monitor(paths, force=True)
+        monitor_refreshed = refresh_worktree_monitor(paths)
+        result = reconcile_with_retry(paths)
+        print(
+            f"[wte] profile-set: files_refreshed={str(files_refreshed).lower()} "
+            f"monitor_refreshed={str(monitor_refreshed).lower()} "
+            f"discovered={result.discovered} applied={result.applied} "
+            f"pending={result.pending}"
+        )
+        return 0 if result.pending == 0 else 1
+    except Exception as exc:
+        log(f"profile-set refresh failed: {exc}")
+        return 1
+
+
+def _cmd_internal_profiles_changed(paths: AppPaths) -> int:
+    """Refresh repository watches and reconcile after a profile-set change."""
+    try:
+        refreshed = refresh_worktree_monitor(paths)
+        result = reconcile_with_retry(paths)
+        print(
+            f"[wte] profiles: monitor_refreshed={str(refreshed).lower()} "
+            f"discovered={result.discovered} applied={result.applied} "
+            f"pending={result.pending}"
+        )
+        return 0 if result.pending == 0 else 1
+    except Exception as exc:
+        log(f"profile refresh failed: {exc}")
+        return 1
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     """Parse arguments and return a process exit status."""
     arguments = list(argv) if argv is not None else sys.argv[1:]
@@ -209,6 +247,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return _cmd_internal_hook(paths)
     if arguments and arguments[0] == INTERNAL_RECONCILE_COMMAND:
         return _cmd_internal_reconcile(paths)
+    if arguments and arguments[0] == INTERNAL_PROFILES_CHANGED_COMMAND:
+        return _cmd_internal_profiles_changed(paths)
+    if arguments and arguments[0] == INTERNAL_PROFILE_SET_CHANGED_COMMAND:
+        return _cmd_internal_profile_set_changed(paths)
 
     _warn_if_legacy_distribution_installed()
     args = _build_parser().parse_args(arguments)

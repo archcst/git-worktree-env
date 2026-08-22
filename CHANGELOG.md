@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-22
+
+- Refresh Monitor repository watch paths automatically when profiles are added,
+  removed, or repointed to another main worktree.
+
 ## [0.5.0] - 2026-08-22
 
 - Renamed `write-files.path` to `write-files.target`, retaining `path` as a

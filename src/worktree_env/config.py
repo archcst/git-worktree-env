@@ -17,7 +17,7 @@ DEFAULT_PROFILE_TEMPLATE_NAME = "project.example.yaml.template"
 DEFAULT_CONFIG = """# Inclusive range used for per-worktree port allocation.\nport-range:\n  start: 20000\n  end: 29999\n"""
 DEFAULT_PROFILE_TEMPLATE = """# Copy this file to a root-level *.yaml file, then edit every example value.
 # Example: cp project.example.yaml.template my-project.yaml
-# Run `wte monitor enable` after adding or changing profiles to refresh monitoring.
+# When enabled, the Monitor refreshes automatically after profile changes.
 
 # A unique identifier stored in the local port registry.
 name: example-fullstack
