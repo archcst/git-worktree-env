@@ -226,12 +226,18 @@ def validate_profiles(paths: AppPaths) -> Tuple[List[str], List[str]]:
             if not isinstance(spec, dict):
                 errors.append(f"{label}: {writes_key}[{index}] must be a mapping")
                 continue
-            write_path = spec.get("path")
-            if not write_path:
-                errors.append(f"{label}: {writes_key}[{index}].path is required")
-            elif Path(str(write_path)).is_absolute() or ".." in Path(str(write_path)).parts:
+            target_key = _selected_key(spec, "target", "path")
+            write_target = aliased_value(spec, "target", "path")
+            if not write_target:
                 errors.append(
-                    f"{label}: {writes_key}[{index}].path must stay inside the worktree"
+                    f"{label}: {writes_key}[{index}].{target_key} is required"
+                )
+            elif Path(str(write_target)).is_absolute() or ".." in Path(
+                str(write_target)
+            ).parts:
+                errors.append(
+                    f"{label}: {writes_key}[{index}].{target_key} must stay inside "
+                    "the worktree"
                 )
             try:
                 Template(str(spec.get("body") or "")).substitute(mapping)

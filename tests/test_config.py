@@ -37,7 +37,7 @@ def test_init_template_is_commented_and_not_an_active_yaml_profile(app_paths):
     assert "main-worktree:" in text
     assert "port-claims:" in text
     assert "link-files:" in text
-    assert "write-files:" in text
+    assert "write-files:\n  - target:" in text
     assert "setup-commands:" in text
     assert "skip-if:" in text
     assert "$HOME/.config/example-app/frontend.env" in text

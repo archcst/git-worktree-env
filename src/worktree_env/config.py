@@ -43,17 +43,17 @@ link-files:
 
 # Optional generated files. Each target is overwritten completely on sync.
 write-files:
-  - path: apps/frontend/.env.development
+  - target: apps/frontend/.env.development
     body: |
       VITE_PORT=${frontend}
       VITE_API_URL=http://127.0.0.1:${backend}
 
-  - path: apps/backend/.env.development
+  - target: apps/backend/.env.development
     body: |
       PORT=${backend}
       CORS_ORIGIN=http://127.0.0.1:${frontend}
 
-# Optional worktree initializers started by post-checkout or the Monitor Reconciler.
+# Optional worktree initializers started by post-checkout, the Monitor, or wte sync.
 # Commands are trusted local configuration executed directly in the background.
 # args are appended to command, and skip-if is resolved relative to cwd.
 setup-commands:

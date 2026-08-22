@@ -71,9 +71,12 @@ def apply_writes(profile: Profile, root: Path, ports: Dict[str, int]) -> None:
     if not isinstance(writes, list):
         raise WteError(f"profile {profile.get('name')} has an invalid write-files section")
     for spec in writes:
-        if not isinstance(spec, dict) or not spec.get("path"):
+        if not isinstance(spec, dict):
             raise WteError(f"profile {profile.get('name')} has an invalid write entry")
-        target = safe_worktree_target(root, str(spec["path"]))
+        target_raw = aliased_value(spec, "target", "path")
+        if not target_raw:
+            raise WteError(f"profile {profile.get('name')} has an invalid write entry")
+        target = safe_worktree_target(root, str(target_raw))
         body = render_template(str(spec.get("body") or ""), ports)
         if target.is_symlink():
             target.unlink()

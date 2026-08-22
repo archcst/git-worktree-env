@@ -2,7 +2,11 @@ import argparse
 
 import pytest
 
-from worktree_env.cli import _build_parser, _warn_if_legacy_distribution_installed
+from worktree_env.cli import (
+    _build_parser,
+    _cmd_sync,
+    _warn_if_legacy_distribution_installed,
+)
 
 
 def test_public_cli_contains_only_the_six_user_commands():
@@ -33,6 +37,20 @@ def test_sync_does_not_accept_a_worktree_path():
 
     with pytest.raises(SystemExit):
         parser.parse_args(["sync", "/tmp/another-worktree"])
+
+
+def test_sync_runs_setup_commands(app_paths, tmp_path, monkeypatch):
+    calls = []
+    result = object()
+    monkeypatch.setattr("worktree_env.cli.worktree_root", lambda: tmp_path)
+    monkeypatch.setattr(
+        "worktree_env.cli.apply_worktree",
+        lambda paths, root, setup: calls.append((paths, root, setup)) or result,
+    )
+    monkeypatch.setattr("worktree_env.cli.print_apply_result", lambda value: None)
+
+    assert _cmd_sync(app_paths) == 0
+    assert calls == [(app_paths, tmp_path, True)]
 
 
 def test_legacy_distribution_prints_migration_instructions(monkeypatch, capsys):

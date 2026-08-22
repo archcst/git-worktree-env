@@ -17,17 +17,17 @@ link-files:
     target: apps/backend/.env
 
 write-files:
-  - path: apps/frontend/.env.development
+  - target: apps/frontend/.env.development
     body: |
       VITE_PORT=${frontend}
       VITE_API_URL=http://127.0.0.1:${backend}
 
-  - path: apps/backend/.env.development
+  - target: apps/backend/.env.development
     body: |
       PORT=${backend}
       CORS_ORIGIN=http://127.0.0.1:${frontend}
 
-# Initializers run in the background only from the post-checkout hook.
+# Initializers run in the background from post-checkout, the Monitor, or wte sync.
 # Each command is trusted local configuration and is executed directly.
 setup-commands:
   - command: [npm]

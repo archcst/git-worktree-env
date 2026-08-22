@@ -58,21 +58,6 @@ uv tool install worktree-env
 uv tool upgrade worktree-env
 ```
 
-## 从 `git-worktree-env` 迁移
-
-PyPI 包和 GitHub 仓库已从 0.2.0 起更名。现有 `~/.config/wte/` 配置完全兼容：
-
-```bash
-uv tool uninstall git-worktree-env
-uv tool install worktree-env
-wte init
-# 如果之前启用了可选的 Monitor：
-wte monitor enable
-```
-
-运行 `wte init` 会刷新 Git Hook 中记录的绝对可执行文件路径。`wte` 命令及现有的
-Profile 和运行状态均保持不变。
-
 ## 开始使用
 
 ```bash
@@ -154,13 +139,13 @@ link-files:
 
 write-files:
   # 前端配置：
-  - path: frontend-dir/.env.development
+  - target: frontend-dir/.env.development
     body: |
       VITE_PORT=${frontend_port}
       SERVER_URL=http://127.0.0.1:${backend_port}
 
   # 后端配置：
-  - path: backend-dir/.env.development
+  - target: backend-dir/.env.development
     body: |
       PORT=${backend_port}
 ```
@@ -168,9 +153,6 @@ write-files:
 > 该示例适用于前后端均可加载 `.env.{env name}` 的情况，请根据具体项目环境变量加载方式自行修改。
 >
 > Worktree 目录删除后，其对应的端口会在下一次触发 `wte` 时被回收。
->
-> 旧版本生成的配置仍然兼容。旧配置项 `port_range`、`main_worktree`、`ports`、
-> `secrets`、`writes`、`init` 和 `skip_if` 均作为上述短横线配置项的别名继续支持。
 
 ## Monitor 说明
 
@@ -233,13 +215,13 @@ setup-commands:
   → 用户或 AI 启动项目时，依赖通常已经准备完成
 ```
 
-异步初始化由正常的 `post-checkout` Hook 启动；当 Monitor Reconciler 发现尚未注册的 Worktree 时也会启动。Reconciler 不会重复处理已注册的 Worktree，同时每条命令的 `skip-if` 标记可进一步避免重复初始化。`wte sync` 不会执行初始化命令。
+异步初始化可由正常的 `post-checkout` Hook、发现未注册 Worktree 的 Monitor Reconciler 或 `wte sync` 启动。建议为 `setup-commands` 中的命令配置合适的 `skip-if`，避免再次同步时重复执行已经完成的初始化。
 
 ## `wte` 支持的命令
 
 ```text
 wte init              创建个人配置和模板，并安装核心 Git Hooks
-wte sync              同步当前 Worktree 的端口、Secrets 和生成文件
+wte sync              同步当前 Worktree 环境并启动配置的初始化命令
 wte list              查看仍存活的 Worktree 端口分配
 wte doctor            诊断配置、Profiles、注册表、Secrets、Hooks 和 Monitor
 wte monitor enable    安装或刷新可选的宿主机监控
@@ -247,8 +229,8 @@ wte monitor disable   只移除宿主机监控，保留 Git Hooks
 wte uninstall         移除 Hooks 和 Monitor，但保留配置和运行状态
 ```
 
-`wte sync` 需要在目标 Worktree 内执行。它会复用已有端口、重新创建 Secrets 软链接并重新生成配置文件。
-当 Worktree 通过非常规方式创建时，你可能需要它。
+`wte` 通常会自动完成同步，无需手动运行 `wte sync`。
+仅在修改 Profile 后，如需将最新配置重新投影到某个 Worktree，可进入该 Worktree 根目录执行 `wte sync` 触发同步。
 
 ## 许可证
 

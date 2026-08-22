@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-22
+
+- Renamed `write-files.path` to `write-files.target`, retaining `path` as a
+  backward-compatible alias.
+- Run configured `setup-commands` during `wte sync`.
+
 ## [0.4.0] - 2026-08-22
 
 - Standardized user-facing configuration keys on hyphenated names while keeping

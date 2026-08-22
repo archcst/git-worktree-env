@@ -6,10 +6,10 @@ from worktree_env.utils import WteError
 
 
 @pytest.mark.parametrize(
-    ("main_key", "claims_key", "links_key", "writes_key"),
+    ("main_key", "claims_key", "links_key", "writes_key", "target_key"),
     [
-        ("main-worktree", "port-claims", "link-files", "write-files"),
-        ("main_worktree", "ports", "secrets", "writes"),
+        ("main-worktree", "port-claims", "link-files", "write-files", "target"),
+        ("main_worktree", "ports", "secrets", "writes", "path"),
     ],
 )
 def test_projection_links_secrets_and_writes_ports(
@@ -21,6 +21,7 @@ def test_projection_links_secrets_and_writes_ports(
     claims_key,
     links_key,
     writes_key,
+    target_key,
 ):
     main, linked = git_worktrees
     secret = tmp_path / "backend.env"
@@ -33,7 +34,7 @@ def test_projection_links_secrets_and_writes_ports(
         f"  - source: {secret}\n"
         "    target: app/.env\n"
         f"{writes_key}:\n"
-        "  - path: app/.env.development\n"
+        f"  - {target_key}: app/.env.development\n"
         "    body: |\n"
         "      PORT=${frontend}\n"
         "      API=http://127.0.0.1:${backend}\n"

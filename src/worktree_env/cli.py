@@ -59,7 +59,9 @@ def _build_parser() -> argparse.ArgumentParser:
         "init",
         help="create local configuration and install the Git hook dispatcher",
     )
-    commands.add_parser("sync", help="synchronize the current worktree")
+    commands.add_parser(
+        "sync", help="synchronize and run setup commands for the current worktree"
+    )
     commands.add_parser("list", help="list live worktree port allocations")
     commands.add_parser("doctor", help="diagnose configuration and host integration")
     monitor_parser = commands.add_parser(
@@ -86,7 +88,7 @@ def _cmd_init(paths: AppPaths) -> int:
     return 0
 
 
-def _cmd_sync(paths: AppPaths, setup: bool = False) -> int:
+def _cmd_sync(paths: AppPaths, setup: bool = True) -> int:
     result = apply_worktree(paths, worktree_root(), setup=setup)
     if result is None:
         raise WteError("the current worktree does not match any project profile")
